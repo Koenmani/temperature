@@ -1,0 +1,74 @@
+version: "3"
+
+services:
+  thermo:
+    environment:
+      - TZ='Europe/Amsterdam'
+    restart: unless-stopped
+    build: "./"
+    privileged: true
+    network_mode: "host"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  verwarmcontroller:
+    environment:
+      - TZ='Europe/Amsterdam'
+    build: "./controller"
+    restart: unless-stopped
+    ports:
+      - "5000"
+    networks:
+      new:
+        aliases:
+          - verwarmcontroller
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  verwarmonoff:
+    environment:
+      - TZ='Europe/Amsterdam'
+    build: "./onoffscripts"
+    restart: unless-stopped
+    networks:
+      new:
+        aliases:
+          - verwarmingonoff
+    depends_on:
+      - verwarmcontroller
+      - thermo
+      - nefit-easy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        
+  nefit-easy:
+    environment:
+      - TZ='Europe/Amsterdam'
+      - NEFIT_SERIAL_NUMBER=""
+      - NEFIT_ACCESS_KEY=""
+      - NEFIT_PASSWORD=""
+    build: "./nefit-easy"
+    restart: unless-stopped
+    networks:
+      new:
+        aliases:
+          - nefit-easy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "8000:8000"
+    
+networks:
+  new:
