@@ -14,7 +14,7 @@ For this project i have used the following hardware:
 1. Raspberry pi 4b
 1. ESP32 with wifi and bluetooth https://www.tinytronics.nl/shop/nl/communicatie/bluetooth/esp32-wifi-en-bluetooth-board-cp2102
 
-#Technologies
+# Technologies
 used technologies:
 1. Python 3 with libraries:
 	1. flask
@@ -29,7 +29,7 @@ used technologies:
 	1. NimBLE-Arduino
 	1. webserver
 
-#Thanks to
+# Thanks to
 Further i would love to give thanks to some projects i used and adjusted to work for my project
 https://github.com/JsBergbau/MiTemperature2
 This project gave me a good headstart for reading thermostats and inject it in my postgress database.
@@ -45,7 +45,7 @@ https://github.com/mpex/EQ3-Thermostat
 I used the eq3 control module and modified it to suit my needs for sending messages to my eq3 heads
 
 
-#The design
+# The design
 The design started pretty simple; Read the temperatures from the thermostats and if the temperature is lower than the set temperature, heat up the room. If it's higher stop heating.
 Pretty simple and in fact it is not much harder than this.
 I wanted to host all the modules as docker image, so they are easilly managed.
@@ -66,7 +66,7 @@ I created a front-end to visualise the heating system status of each room. It's 
 
 I will dive into my own modules individually and explain the logics and code. Standard modules such as the nefit easy server and the postgress database i will not cover.
 
-##The first module to explain is the thermostat container
+## The first module to explain is the thermostat container
 The code used is from https://github.com/JsBergbau/MiTemperature2, thanks!
 There is one modification i have done, because of errors i was getting during runtime.
 The command that will be run (from the Dockerfile) is 
@@ -83,7 +83,7 @@ In this case the reading module and the valve controlling module. If this is the
 The code will not crash (unfortunatly), but will keep on thinking it is connected, but actually is not. 
 configuring the supplied -wdt to 60 seconds means that if it will not recieve any readings for 60 seconds, it will re-start the thread.
 
-##The second module to explain is the onoff module
+## The second module to explain is the onoff module
 The basics for this module is prety simple. A loop which checks every minute for changes in the readings from database and sends signals to the radiator heads and heating system accordingly
 pretty simple huh!
 
@@ -113,7 +113,7 @@ I have chose for the valve to open to just put it to 30 degrees celsius. Closing
 Same for the CV.
 When the insync value is True, this means readings of the thermostat are not accurate (updated longer than 15 mintes ago). In this case i try to send the needed temperature to the valve, hoping the internal thermostat will do its job, until the bluetooth connection for readings stabilise again.
 
-##The third module to explain is the controller module
+## The third module to explain is the controller module
 The controller module is located in the controller folder and named 'verwarmcontroller.py'
 This is a Flask app, which will host several api's:
 1. verwarmingstatus
@@ -122,7 +122,7 @@ This is a Flask app, which will host several api's:
 1. setradiator
 ...and some other which are in development. Let me go over them one by one, starting with the most used "verwarmingstatus"
 
-###verwarmingstatus
+### verwarmingstatus
 verwarming is the dutch word for heating. essentially meaning heatingstatus
 verwarmstatus will return an object which is populated with values from the database, using dbocnfig.py
 it will return an array for each room that contains the following values:
@@ -150,7 +150,7 @@ For each attached radiator it will attach and array of radiator valves
 "tijd": Current time of returned object
 '''
 
-###kamerschema
+### kamerschema
 Kamerschema will return a an object for a given room.
 The object will contain the heating schedule for the given room
 '''
@@ -162,15 +162,15 @@ The object will contain the heating schedule for the given room
 '''
 usually this will contain multiple values for each switch point that is programmed for this room
 
-###setschedule
+### setschedule
 setschedule... excuse my english here, as the other api's are dutch
 This api will do what it says. It takes an input object in json, similarly like the kamerschema api. This api will delete the current schedule for the given room and replace insert all new values
 
-###setradiator
+### setradiator
 Set radiator api is maintained for updating the database with the current open or closed status of a valve. It is being called by the onoff module when it opens or closes a radiator.
 This way the database reflects the actual status of the valve (open/close).
 
-#installation guidelines
+# Installation guidelines
 1. Clone the GIT repo to your machine
 1. Modify the variables in dbconfig.py to match your situation
 1. Modify the docker-compose.yml NEFIT variables to match your situation
@@ -251,10 +251,10 @@ const char *password = "";
 '''
 
 
-#screenshots
+# Screenshots
 
 
-#Todo
+# Todo
 1. replace sensors.ini with database content instead
 1. when starting for first time, create tables itself
 1. get rid of the variables in verwarmonoff.py and read them from database
