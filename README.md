@@ -70,9 +70,9 @@ I will dive into my own modules individually and explain the logics and code. St
 The code used is from https://github.com/JsBergbau/MiTemperature2, thanks!
 There is one modification i have done, because of errors i was getting during runtime.
 The command that will be run (from the Dockerfile) is 
-'''
+```
 python3 ./LYWSD03MMC.py -a -r -b -df sensors.ini -odl -wdt 60 -call SendtoDB.py
-'''
+```
 Do note that this is mentioned as ENTRYPOINT and i have put a CMD /bin/bash afterwards in the dockerfile, preventing docker to think that there are no foreground processes
 Going into sendtodb.py
 The standard code was providing an interface to send the data to an influx database. Because i needed to provide the data to a postgres database i created the 'SendtoDB.py' file.
@@ -126,7 +126,7 @@ This is a Flask app, which will host several api's:
 verwarming is the dutch word for heating. essentially meaning heatingstatus
 verwarmstatus will return an object which is populated with values from the database, using dbocnfig.py
 it will return an array for each room that contains the following values:
-'''
+```
 "kamer":[
 {
 "tid": Id value for the room,
@@ -148,18 +148,18 @@ For each attached radiator it will attach and array of radiator valves
 	}]
 }],
 "tijd": Current time of returned object
-'''
+```
 
 ### kamerschema
 Kamerschema will return a an object for a given room.
 The object will contain the heating schedule for the given room
-'''
+```
 [{
 	"dag": "null",
 	"tijd": "null",
 	"temp": "null"
 }]
-'''
+```
 usually this will contain multiple values for each switch point that is programmed for this room
 
 ### setschedule
@@ -177,7 +177,7 @@ This way the database reflects the actual status of the valve (open/close).
 1. Maybe you also want to look at the timezone details there. For some reason i have been struggling with this alot
 1. Modify the sensors.ini to match your sensor adresses and database keys
 1. Create the tables in your postgress database using following queries
-'''
+```
 CREATE TABLE verwarmschema.thermostaat (
 tid serial NOT NULL,
 mac varchar(100) NOT NULL,
@@ -226,7 +226,7 @@ datumtijd timestamp NOT NULL,
 CONSTRAINT radiator_history_pk PRIMARY KEY (rhid),
 CONSTRAINT radiator_history_radiator_fk FOREIGN KEY (fk_rid) REFERENCES verwarmschema.radiator(rid) ON DELETE CASCADE ON UPDATE CASCADE
 );
-'''
+```
 1. Now that you have your database set up, you should manually add room details in the main thermostat table (in sync with sensors.ini). Also add associated radiators in the radiator table. Be sure to put the right adresses for the thermostats and radiator valves. When using an ESP32 the nameconvention is '''esp32_ip@valve_mac''' for example: '''192.168.0.1@ae:01:e6:78:a1'''
 1. Also , which should be an improvement, is that there are some variables stored in the 'verwarmonoff.py' module, under the 'onoff' directory. The section is marked with comment 'configurable variables'.
 The most important variable here is the rpi adress, which should be pointing towards the nefit http server of robert klep.
@@ -235,24 +235,21 @@ smartheat variables are yet untested
 For usage of smartheating you should replace your apikey with yours. You can create it on api.weather.com.
 Also you should fill in your own logitide and latitude, of course.
 1. build your docker images with following command in the root folder of the repo
-'''
-docker-compose build
-'''
+`docker-compose build`
 this will take a while, as it also runs apt-get upgrade and update
-1. All set, run with '''docker-compose up'''
+1. All set, run with `docker-compose up`
 
 [optionally]
 If you experience problems with the range of your bluetooth to your valves, you will need to set up an ESP32 with http and bluetooth closer by.
 I've set it up to connect to my wifi and host an http server on port 80 which can receive commands from the eq3 object
 Navigate to the 'Http_EQ3_Control.ino' file and modify the wifi and password settings to match your situation (on line 7 and 8)
-'''
+```
 const char *ssid = "";
 const char *password = "";
-'''
-
+```
 
 # Screenshots
-
+need to add
 
 # Todo
 1. replace sensors.ini with database content instead
