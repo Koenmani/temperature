@@ -1,0 +1,1706 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 5,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "-- Mixed --",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null
+          },
+          "decimals": 2,
+          "mappings": [],
+          "min": 1,
+          "noValue": "1",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "m3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "7.1.1",
+      "targets": [
+        {
+          "datasource": "PostgreSQL",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(jaarmaanddaguur,1d),\n  min(gas) AS \"gas_min\",\n  max(gas) AS \"gas_max\"\nFROM p1monschema.dagstand_detail\nWHERE\n  $__timeFilter(jaarmaanddaguur)\nGROUP BY 1\nORDER BY 1",
+          "refId": "C",
+          "select": [
+            [
+              {
+                "params": [
+                  "gas"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "min"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "gas_min"
+                ],
+                "type": "alias"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "gas"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "max"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "gas_max"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "p1monschema.dagstand_detail",
+          "timeColumn": "jaarmaanddaguur",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_werkkamer\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 1\nGROUP BY 1\nORDER BY 1",
+          "refId": "D",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_werkkamer"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "1"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_matthias\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 2\nGROUP BY 1\nORDER BY 1",
+          "refId": "E",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_matthias"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "2"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_ephiny\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 3\nGROUP BY 1\nORDER BY 1",
+          "refId": "F",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_ephiny"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "3"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_pama\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 4\nGROUP BY 1\nORDER BY 1",
+          "refId": "G",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_pama"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "4"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_isabella\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 5\nGROUP BY 1\nORDER BY 1",
+          "refId": "H",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_isabella"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "5"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_woonkamer\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 6\nGROUP BY 1\nORDER BY 1",
+          "refId": "I",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_woonkamer"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "6"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_zahia\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 7\nGROUP BY 1\nORDER BY 1",
+          "refId": "J",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_zahia"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "7"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  sum(open_close) AS \"open_close_david\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 8\nGROUP BY 1\nORDER BY 1",
+          "refId": "K",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_david"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "int4",
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "8"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1d",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1d),\n  case when sum(open_close) = 0 then 1 else sum(open_close) end AS \"open_close_tot\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd)\nGROUP BY 1\nORDER BY 1;\n\n",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_tot"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Dagelijks per kamer",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_tot",
+            "binary": {
+              "left": "gas_max",
+              "operator": "-",
+              "reducer": "sum",
+              "right": "gas_min"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_werk",
+            "binary": {
+              "left": "open_close_werkkamer",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Werkkamer",
+            "binary": {
+              "left": "gas_deel_werk",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_mat",
+            "binary": {
+              "left": "open_close_matthias",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Matthias",
+            "binary": {
+              "left": "gas_deel_mat",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_eph",
+            "binary": {
+              "left": "open_close_ephiny",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Ephiny",
+            "binary": {
+              "left": "gas_deel_eph",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_PaMa",
+            "binary": {
+              "left": "open_close_pama",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "PaMa",
+            "binary": {
+              "left": "gas_deel_PaMa",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_bel",
+            "binary": {
+              "left": "open_close_isabella",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Isabella",
+            "binary": {
+              "left": "gas_deel_bel",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_woon",
+            "binary": {
+              "left": "open_close_woonkamer",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Woonkamer",
+            "binary": {
+              "left": "gas_deel_woon",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_zahia",
+            "binary": {
+              "left": "open_close_zahia",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Zahia",
+            "binary": {
+              "left": "gas_deel_zahia",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "gas_deel_david",
+            "binary": {
+              "left": "open_close_david",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "open_close_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "David",
+            "binary": {
+              "left": "gas_deel_david",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "gas_tot"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "gas_deel_PaMa": true,
+              "gas_deel_bel": true,
+              "gas_deel_david": true,
+              "gas_deel_eph": true,
+              "gas_deel_mat": true,
+              "gas_deel_werk": true,
+              "gas_deel_woon": true,
+              "gas_deel_zahia": true,
+              "gas_max": true,
+              "gas_min": true,
+              "open_close_david": true,
+              "open_close_ephiny": true,
+              "open_close_isabella": true,
+              "open_close_matthias": true,
+              "open_close_pama": true,
+              "open_close_tot": true,
+              "open_close_werkkamer": true,
+              "open_close_woonkamer": true,
+              "open_close_zahia": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "gas_tot": "Totaal gasverbruik"
+            }
+          }
+        }
+      ],
+      "type": "bargauge"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "-- Mixed --",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 9
+      },
+      "hiddenSeries": false,
+      "id": 4,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "percentage": false,
+      "pluginVersion": "7.1.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "hide": true,
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  round(avg(open_close),0) AS \"open_close\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd)\n  and fk_rid=6\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "avg"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_werkkamer\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 1\nGROUP BY 1\nORDER BY 1",
+          "refId": "D",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_werkkamer"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "1"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_matthias\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 2\nGROUP BY 1\nORDER BY 1",
+          "refId": "E",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_matthias"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "2"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_ephiny\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 3\nGROUP BY 1\nORDER BY 1",
+          "refId": "F",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_ephiny"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "3"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_pama\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 4\nGROUP BY 1\nORDER BY 1",
+          "refId": "G",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_pama"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "4"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_isabella\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 5\nGROUP BY 1\nORDER BY 1",
+          "refId": "H",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_isabella"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "5"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_woonkamer\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 6\nGROUP BY 1\nORDER BY 1",
+          "refId": "I",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_woonkamer"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "6"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_zahia\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 7\nGROUP BY 1\nORDER BY 1",
+          "refId": "J",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_zahia"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "7"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "datasource": "PostgreSQL-1",
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(datumtijd,1h),\n  sum(open_close) AS \"open_close_david\"\nFROM verwarmschema.radiator_history\nWHERE\n  $__timeFilter(datumtijd) AND\n  fk_rid = 8\nGROUP BY 1\nORDER BY 1",
+          "refId": "K",
+          "select": [
+            [
+              {
+                "params": [
+                  "open_close"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "sum"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "open_close_david"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "verwarmschema.radiator_history",
+          "timeColumn": "datumtijd",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "int4",
+              "name": "",
+              "params": [
+                "fk_rid",
+                "=",
+                "8"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Gasverbruik grafiek",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transformations": [],
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "none",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": "-- Mixed --",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 16,
+        "x": 0,
+        "y": 18
+      },
+      "id": 3,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "diff"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "7.1.1",
+      "targets": [
+        {
+          "datasource": "PostgreSQL",
+          "format": "table",
+          "group": [
+            {
+              "params": [
+                "1h",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(jaarmaanddaguur,1h),\n  avg(gas) AS \"gas\"\nFROM p1monschema.dagstand_detail\nWHERE\n  $__timeFilter(jaarmaanddaguur)\nGROUP BY 1\nORDER BY 1",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "gas"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "avg"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "gas"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "p1monschema.dagstand_detail",
+          "timeColumn": "jaarmaanddaguur",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Totaal gasverbruik",
+      "transformations": [],
+      "type": "gauge"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 26,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now/d",
+    "to": "now/d"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "Gasverbruik details",
+  "uid": "8Om1n7iRk",
+  "version": 22
+}

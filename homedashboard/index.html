@@ -1,0 +1,239 @@
+<html>
+<head>
+	<script src="vue.js"></script>
+	<link rel="stylesheet" href="main.css" type="text/css">
+	<link rel="stylesheet" href="tabs.css" type="text/css">
+</head>
+<body>
+	<div id="tabs" class="container">
+	    <div class="tabs">
+	        <a v-on:click="activetab=1" v-bind:class="[ activetab === 1 ? 'active' : '' ]">Homecontrol</a>
+	        <a v-on:click="activetab=2" v-bind:class="[ activetab === 2 ? 'active' : '' ]">Energy/Gas</a>
+	        <a v-on:click="activetab=3" v-bind:class="[ activetab === 3 ? 'active' : '' ]">Watering</a>
+	    </div>
+	
+	    <div class="content">
+	        <div v-if="activetab === 1" class="tabcontent">
+	            <div class="status_wrapper">
+					<div v-bind:class="[ lighting === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="toggle_light()">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Buitenlampen</div>
+					</div>
+					<div v-bind:class="[ verwarming === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Verwarming</div>
+					</div>
+					<div v-bind:class="[ ventilator === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="toggle_vent()">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Ventilator</div>
+					</div>
+					<div v-bind:class="[ watering_status === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="activetab=3">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Watering</div>
+					</div>
+				</div>
+				<div class="kamer_wrapper">
+					<div id="app">
+						<div v-if="activekmr === 0">
+							<kamers v-for="(item, index) in kamer_obj" :item="item" :key="index"></kamers>
+						</div>
+						<div v-if="activekmr > 0">
+							<kamer :item="kamer_obj[activekmr-1]" :schema="schema_obj"></kamer>						
+						</div>
+						<div class="popup" v-if="showpopup === true">
+							<popup :kmr="kamer_obj[activekmr-1]" :tijd="activeschema" :popupx="popupleft" :popupy="popuptop"></popup>
+						</div>
+					</div>
+				</div>				
+	        </div>
+	        <div v-if="activetab === 2" class="tabcontent grafanatab">
+	            <iframe src="http://192.168.0.125:3000" title="Energy/gas dashboard" class="grafana-frame"></iframe>
+	        </div>
+	        <div v-if="activetab === 3" class="tabcontent">
+	            <div v-if="activekmr === 0">
+					<div class="status_wrapper">
+						<programs v-for="(item, index) in water_obj.programlist" :item="item" :key="index"></programs>
+						<programs :item="nieuwe_zone"></programs>
+					</div>
+					<div class="kamer_wrapper">
+						<div v-if="activeprog > 0">
+							<zones v-for="(v, index) in zone_obj" :item="v" :key="index"></zones>
+						</div>
+					</div>
+				</div>	
+				</div>
+	        </div>
+	    </div>
+	</div>
+</body>
+<script src="balk.js"></script>
+<script src="popup.js"></script>
+<script src="rooms.js"></script>
+<script src="room.js"></script>
+<script src="zones.js"></script>
+<script src="programs.js"></script>
+<script src="navigation.js"></script>
+<script type="module">
+//url: "http://192.168.0.158:5000" //local
+var rpi = "http://192.168.0.125"
+const VM = new Vue({
+  el: '#tabs',
+  components: {
+    kamers: Rooms,
+    programs: Programs,
+    kamer: Room,
+    zones: Zones,
+    popup: Popup
+  },  
+  data: {
+    kamer_obj: [],
+    schema_obj: [],
+    timer: '',
+    activetab: 1,
+    activekmr: 0,
+    activeschema: "",
+    verwarming:false,
+    lighting:false,
+    ventilator:false,
+    error:false,
+    inerror:false,
+    showpopup:false,
+    popupleft:"",
+    popuptop:"",
+    popuparrowleft:0,
+    popuparrowright:0,
+    popuparrowtop:0,
+    popuparrowel:null,
+    old_temp_obj:0,
+    ip: rpi,
+	url: rpi+":6543", //rpi
+    watering_status: false,
+    water_obj: [],
+    zone_obj: [],
+    activeprog: 0,
+    nieuwe_zone: [{"beschrijving":"nieuw","error":0,"status":false,"timing":0}]
+  },
+  created (){
+	this.fetchkamers()
+	this.timer = setInterval(this.fetchkamers, 60000) 
+	
+	this.fetchCVstatus()
+	this.timer = setInterval(this.fetchCVstatus, 60000)
+	
+	this.fetchlightstatus()
+	this.timer = setInterval(this.fetchlightstatus, 60000) 
+	
+	this.fetchventstatus()
+	this.timer = setInterval(this.fetchventstatus, 60000)
+	
+	this.fetchwaterstatus()
+	this.timer = setInterval(this.fetchwaterstatus, 60000) 
+  },
+  methods: {
+	toggle_light(){
+		if (this.lighting == false){
+			fetch(rpi+'/lighton')
+			.then(response => response.json())
+			.then(json => {
+				if (json[0]=="done") {
+					this.lighting = true
+				}
+			})
+			.catch(function (error) {
+				console.log('Error, could not get light status')
+			})
+		}
+		else{
+		 	fetch(rpi+'/lightoff')
+			.then(response => response.json())
+			.then(json => {
+				if (json[0]=="done") {
+					this.lighting = false
+				}
+			})
+		}
+	},toggle_vent(){
+		if (this.ventilator == false){
+			fetch(rpi+':9876/fanon')
+			.then(response => response.json())
+			.then(json => {
+				if (json[0]=="done") {
+					this.ventilator = true
+				}
+			})
+			.catch(function (error) {
+				console.log('Error, could not get fan status')
+			})
+		}
+		else{
+		 	fetch(rpi+':9876/fanoff')
+			.then(response => response.json())
+			.then(json => {
+				if (json[0]=="done") {
+					this.ventilator = false
+				}
+			})
+		}
+	},fetchkamers(){
+		fetch(this.url+'/verwarmingstatus')
+		.then(response => response.json())
+		.then(json => {
+			this.kamer_obj = json['kamer']
+		})	
+	},fetchventstatus(){
+		fetch(rpi+':9876/fanstatus')
+		.then(response => response.json())
+		.then(json => {
+			if (json[0]=="1") {
+				this.ventilator = true
+			}
+			else{
+				this.ventilator = false
+			}
+		})
+	},
+	fetchCVstatus(){
+		fetch(rpi+':8000/api/status')
+		.then(response => response.json())
+		.then(json => {
+			if (json["hot water active"]==true) {
+				if (json["boiler indicator"]=="central heating"){
+					this.verwarming = true
+				}
+				else{
+					this.verwarming = false
+				}
+			}
+			else{
+				this.verwarming = false
+			}
+		})	
+	},
+	fetchlightstatus(){
+		fetch(rpi+'/lightstatus')
+		.then(response => response.json())
+		.then(json => {
+			if (json[0]=="1") {
+				this.lighting = true
+			}
+			else{
+				this.lighting = false
+			}
+		})
+	},fetchwaterstatus(){
+		fetch(rpi+'/wateringsetupget?devid=refresh&auth=1')
+		.then(response => response.json())
+		.then(json => {
+			//check if the system is currently watering
+			if (json['watering'] == true){
+				this.watering_status = true
+			}else{
+				this.watering_status = false
+			}
+			//parse program and zone status?
+			this.water_obj = json
+		})
+	},
+  }
+});
+//{"kamer":[{"handmatig":false,"huidig":18.3,"ingesteld":0,"laatste_tijd":0,"naam":"Matthias","radiator":[{"mac":null}],"tid":1,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":18.2,"ingesteld":0,"laatste_tijd":0,"naam":"Zahia","radiator":[{"mac":null}],"tid":2,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":17.3,"ingesteld":0,"laatste_tijd":0,"naam":"Badkamer","radiator":[{"mac":null}],"tid":3,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":17.3,"ingesteld":0,"laatste_tijd":0,"naam":"Isabella","radiator":[{"mac":null}],"tid":4,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":16.1,"ingesteld":0,"laatste_tijd":0,"naam":"PaMa","radiator":[{"mac":null}],"tid":5,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":20.0,"ingesteld":0,"laatste_tijd":0,"naam":"Woonkamer","radiator":[{"mac":null}],"tid":6,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":17.9,"ingesteld":0,"laatste_tijd":0,"naam":"David","radiator":[{"mac":null}],"tid":7,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":19.4,"ingesteld":0,"laatste_tijd":0,"naam":"Ephiny","radiator":[{"mac":null}],"tid":8,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":19.6,"ingesteld":18.0,"laatste_tijd":"09:00","naam":"Werkkamer","radiator":[{"mac":"00:1A:22:16:8B:E9"}],"tid":9,"volgend_temp":15.0,"volgend_tijd":"18:00"},{"handmatig":false,"huidig":15.9,"ingesteld":0,"laatste_tijd":0,"naam":"Berging","radiator":[{"mac":null}],"tid":10,"volgend_temp":0,"volgend_tijd":0}]}
+</script>
+
+</html>
+

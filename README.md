@@ -248,8 +248,34 @@ const char *ssid = "";
 const char *password = "";
 ```
 
+Now you have your backend running, you need a front end to visualise it, right.
+I have two modules running in the frontend:
+1. A Own build home dashboard based on vue.js
+1. A Grafana docker image, with some dashboards visualizing in various interesting dashboards.
+
+## The home dashboard
+The home dashboard contains multiple tabs, including some stuff from other projects (automated lighting and watering of my garden and automated ventilation of my bathroom, based on humidity)
+This description will only focus on the front-end needed for this project.
+In the homedashboard directory you can find the dashboard source files. 
+I have set up an NGINX to serve these basic files, but you could choose your own favorite webserver.
+Import to set up, you will need to modify the rpi variable with your own ip adress.
+It is configured to load every minute and request the object from the controller module. 
+Also via this screen you could adjust the heating schedule, by clicking on one of the rooms and in the following screen click on the schedule to adjust a current one or the + sign to add a switch point.
+
+## Grafana frontend
+I'm running a grafana on the data, to visualize data and do analysis.
+Several dashboards are defined.
+1. thermometer - This shows the last readings of all the thermostats
+
+[optionally]
+I have configured a P1 monitor over a serial bus. This reads gas and energy usage from the smart meter, every 10 seconds.
+In this way you will be able to correlate more data and show for example the gas usage for each room as a result of heating (and shower)
+
+
 # Screenshots
-need to add
+![Alt text](images/gasverbruik.png)
+![Alt text](images/homedashboard.png)
+![Alt text](images/thermometers.png)
 
 # Todo
 1. replace sensors.ini with database content instead

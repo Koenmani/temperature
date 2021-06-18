@@ -1,0 +1,40 @@
+<html>
+<head>
+	<script src="vue.js"></script>
+	<link rel="stylesheet" href="main.css" type="text/css">
+</head>
+<body>
+	<div id="app" >
+	  <room v-on:click="roomclick()" v-for="(f, index) in message">
+	  	<div v-bind:id="'room-${index}'" class='roomcontainer'/>
+	  </room>
+	</div>
+</body>
+
+<script type="module">
+Vue.component('room', {
+  data: () => ({
+    isActive: true
+  }),
+  methods: {
+    roomclick() {
+      console.log('Clicked!')
+    }
+  },
+  template:'  <div @click="roomclick()" class="kamer">I am a room</div> '
+});
+var app = new Vue({
+  el: '#app',
+  data: {
+    message: []
+  },
+  created (){
+	fetch('http://192.168.0.124:5000/wateringstatus')
+	.then(response => response.json())
+	.then(json => {
+		this.message = json
+	})
+  }
+})
+</script>
+</html>
