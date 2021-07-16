@@ -79,7 +79,7 @@ class EQ3Thermostat(object):
             if (self.remoteaddress):
                 r = requests.get('http://'+self.remoteaddress+'/manualmode?mac='+self.address, timeout=30)            
             else:
-                p = subprocess.Popen(["timeout" ,"10", "gatttool", "-b", self.address, "--char-write-req",
+                p = subprocess.Popen(["timeout" ,"20", "gatttool", "-b", self.address, "--char-write-req",
                                 "-a", "0x0411", "-n", "4040"],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except:
@@ -113,7 +113,7 @@ class EQ3Thermostat(object):
                 self.failedtimes = 0
             else:
                 temperature = hex(int(2 * float(temperature)))[2:]
-                p = subprocess.Popen(["timeout" ,"10", "gatttool", "-b", self.address, "--char-write-req",
+                p = subprocess.Popen(["timeout" ,"20", "gatttool", "-b", self.address, "--char-write-req",
                                         "-a", "0x0411", "-n", "41{}".format(temperature)],
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     	        # Block for 3 secs to let the thermostat adjust the temperature
@@ -138,7 +138,7 @@ class EQ3Thermostat(object):
                     self.failedtimes = self.failedtimes + 1
                     return False
             else:
-                p = subprocess.Popen(["timeout" ,"10", "gatttool", "-b", self.address, "--char-write-req",
+                p = subprocess.Popen(["timeout" ,"20", "gatttool", "-b", self.address, "--char-write-req",
     	                              "-a", "0x0411", "-n", "413c"],
     	                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     	        # Block for 2 secs to let the thermostat adjust the temperature
@@ -172,7 +172,7 @@ class EQ3Thermostat(object):
                     self.failedtimes = self.failedtimes + 1
                     return False
             else:
-                p = subprocess.Popen(["timeout" ,"10", "gatttool", "-b", self.address, "--char-write-req",
+                p = subprocess.Popen(["timeout" ,"20", "gatttool", "-b", self.address, "--char-write-req",
     	                              "-a", "0x0411", "-n", "4109"],
     	                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     	        # Block for 2 secs to let the thermostat adjust the temperature
@@ -196,7 +196,7 @@ class EQ3Thermostat(object):
     def set_temperature_offset(self, offset):
         """Untested."""
         temperature = hex(int(2 * float(offset) + 7))[2:]
-        p = subprocess.Popen(["timeout" ,"10", "gatttool", "-b", self.address, "--char-write-req",
+        p = subprocess.Popen(["timeout" ,"20", "gatttool", "-b", self.address, "--char-write-req",
                               "-a", "0x0411", "-n", "13{}".format(temperature)],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
