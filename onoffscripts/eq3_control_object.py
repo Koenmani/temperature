@@ -77,7 +77,7 @@ class EQ3Thermostat(object):
         """Put thermostat in manual mode."""
         try:
             if (self.remoteaddress):
-                r = requests.get('http://'+self.remoteaddress+'/manualmode?mac='+self.address, timeout=5)            
+                r = requests.get('http://'+self.remoteaddress+'/manualmode?mac='+self.address, timeout=30)            
             else:
                 p = subprocess.Popen(["timeout" ,"10", "gatttool", "-b", self.address, "--char-write-req",
                                 "-a", "0x0411", "-n", "4040"],
@@ -109,7 +109,7 @@ class EQ3Thermostat(object):
         """Transform the temperature in celcius to make it readable to the thermostat."""
         try:
             if (self.remoteaddress):
-                r = requests.get('http://'+self.remoteaddress+'/settemp?mac='+self.address+"&temp="+str(temperature), timeout=5)
+                r = requests.get('http://'+self.remoteaddress+'/settemp?mac='+self.address+"&temp="+str(temperature), timeout=30)
                 self.failedtimes = 0
             else:
                 temperature = hex(int(2 * float(temperature)))[2:]
@@ -128,7 +128,7 @@ class EQ3Thermostat(object):
     def set_valve_open(self):
         try:
             if (self.remoteaddress):
-                r = requests.get('http://'+self.remoteaddress+'/valve?mac='+self.address+"&status=open", timeout=5)
+                r = requests.get('http://'+self.remoteaddress+'/valve?mac='+self.address+"&status=open", timeout=30)
                 response = r.json()
                 if (response[0]['result']=='done'):
                     self.temperature = 100
@@ -162,7 +162,7 @@ class EQ3Thermostat(object):
     def set_valve_close(self):
         try:
             if (self.remoteaddress):
-                r = requests.get('http://'+self.remoteaddress+'/valve?mac='+self.address+"&status=closed", timeout=5)
+                r = requests.get('http://'+self.remoteaddress+'/valve?mac='+self.address+"&status=closed", timeout=30)
                 response = r.json()
                 if (response[0]['result']=='done'):
                     self.temperature = 0
