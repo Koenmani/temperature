@@ -4,6 +4,10 @@ services:
   thermo:
     environment:
       - TZ='Europe/Amsterdam'
+      - VERWARMING_DB_IP=192.168.0.125
+      - VERWARMING_DBNAME=verwarming
+      - VERWARMING_DBUSER=
+      - VERWARMING_DBPASS=
     restart: unless-stopped
     build: "./"
     privileged: true
@@ -17,10 +21,14 @@ services:
   verwarmcontroller:
     environment:
       - TZ='Europe/Amsterdam'
+      - VERWARMING_DB_IP=192.168.0.125
+      - VERWARMING_DBNAME=verwarming
+      - VERWARMING_DBUSER=
+      - VERWARMING_DBPASS=
     build: "./controller"
     restart: unless-stopped
     ports:
-      - "5000"
+      - "6543:5000"
     networks:
       new:
         aliases:
@@ -34,16 +42,20 @@ services:
   verwarmonoff:
     environment:
       - TZ='Europe/Amsterdam'
+      - VERWARMING_ONOFF_RPI=http://192.168.0.125:8000/
+      - VERWARMING_CLOSING_OFFSET=0.2
+      - VERWARMING_HEATING_OFFSET=0.7
+      - VERWARMING_SMART_HEAT=False
+      - VERWARMING_ONOFF_LON=
+      - VERWARMING_ONOFF_LAT=
+      - VERWARMING_ONOFF_API=
     build: "./onoffscripts"
     restart: unless-stopped
-    networks:
-      new:
-        aliases:
-          - verwarmingonoff
+    privileged: true
+    network_mode: "host"
     depends_on:
       - verwarmcontroller
       - thermo
-      - nefit-easy
     logging:
       driver: "json-file"
       options:
@@ -53,9 +65,9 @@ services:
   nefit-easy:
     environment:
       - TZ='Europe/Amsterdam'
-      - NEFIT_SERIAL_NUMBER=""
-      - NEFIT_ACCESS_KEY=""
-      - NEFIT_PASSWORD=""
+      - NEFIT_SERIAL_NUMBER=
+      - NEFIT_ACCESS_KEY=
+      - NEFIT_PASSWORD=
     build: "./nefit-easy"
     restart: unless-stopped
     networks:
@@ -69,6 +81,6 @@ services:
         max-file: "3"
     ports:
       - "8000:8000"
-    
+        
 networks:
   new:

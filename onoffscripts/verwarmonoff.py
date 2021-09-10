@@ -7,6 +7,7 @@ from dateutil import tz
 import requests
 from eq3_control_object import EQ3Thermostat
 import traceback
+import os
 
 def cur_time():
 	utc = datetime.now()
@@ -76,17 +77,40 @@ forecast = None #This is used to load the weather forecast, to determine if we s
 verwarming = False
 radiator_list = []
 first_load = True
+heatingcounter = 0 #Sometimes connection is lost with CV, need to at least send a signal every 15min
+smartheatingcounter = 0 #we dont want to load every minute. twice a day is enough = 720 minutes/counters
 
 ###configurable variables
-rpi = 'http://192.168.0.125:8000/' #ip:port to the api serving the interface to the CV/heater
-closing_offset = 0.2 #close radiator head 0.2 a degree earlier as the existing warm water will heat the room up for the last 0.5 degree
-heating_offset = 0.7 #stop heating boiler 1 degree before the actual temperature has reached, but keep radiators open. Existing warm water will be enough to heat the room up last degree
-heatingcounter = 0 #Sometimes connection is lost with CV, need to at least send a signal every 15min
-smartheating = False
-smartheatingcounter = 0 #we dont want to load every minute. twice a day is enough = 720 minutes/counters
-latitude = '51.87'
-longitude = '4.60'
-apikey = "b3e2781468f747d3a2781468f7d7d30b"
+if os.getenv("VERWARMING_ONOFF_RPI") is not None:
+	rpi = os.getenv("VERWARMING_ONOFF_RPI")
+else:
+	rpi = 'http://192.168.0.125:8000/' #ip:port to the api serving the interface to the CV/heater
+
+if os.getenv("VERWARMING_CLOSING_OFFSET") is not None:
+	closing_offset = os.getenv("VERWARMING_CLOSING_OFFSET")
+else:
+	closing_offset = 0.2 #close radiator head 0.2 a degree earlier as the existing warm water will heat the room up for the last 0.5 degree
+if os.getenv("VERWARMING_HEATING_OFFSET") is not None:
+	heating_offset = os.getenv("VERWARMING_HEATING_OFFSET")
+else:
+	heating_offset = 0.7 #stop heating boiler 1 degree before the actual temperature has reached, but keep radiators open. Existing warm water will be enough to heat the room up last degree
+if os.getenv("VERWARMING_SMART_HEAT") is not None:
+	smartheating = os.getenv("VERWARMING_SMART_HEAT")
+else:
+	smartheating = False
+
+if os.getenv("VERWARMING_ONOFF_LON") is not None:
+	longitude = os.getenv("VERWARMING_ONOFF_LON")
+else:
+	longitude = '' 
+if os.getenv("VERWARMING_ONOFF_LAT") is not None:
+	latitude = os.getenv("VERWARMING_ONOFF_LAT")
+else:
+	latitude = '' 
+if os.getenv("VERWARMING_ONOFF_API") is not None:
+	apikey = os.getenv("VERWARMING_ONOFF_API")
+else:
+	apikey = ""
 
 try:
 	print("%s Starting up for the first time" % (cur_time(),), file=sys.stderr)
@@ -334,7 +358,7 @@ try:
 							if radiator_list[t4].remoteaddress:
 								a = radiator_list[t4].address+"@"+radiator_list[t4].remoteaddress							
 							rpi_temp = rpi.split(":")[0]+":"+rpi.split(":")[1]
-							r = requests.post(rpi_temp+'6543/setradiator', data = {'valve' : radiator_list[t4].status, 'mac': a}, timeout=5)
+							r = requests.post(rpi_temp+':6543/setradiator', data = {'valve' : radiator_list[t4].status, 'mac': a}, timeout=5)
 							#r = requests.post('http://192.168.0.158:5000/setradiator', data = {'valve' : status, 'mac': radiator_list[t4].address})
 						except:
 							traceback.print_exc()
