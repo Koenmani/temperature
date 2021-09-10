@@ -14,7 +14,7 @@ For this project i have used the following hardware:
 1. Raspberry pi 4b
 1. ESP32 with wifi and bluetooth https://www.tinytronics.nl/shop/nl/communicatie/bluetooth/esp32-wifi-en-bluetooth-board-cp2102
 
-# Technologies
+#Technologies
 used technologies:
 1. Python 3 with libraries:
 	1. flask
@@ -29,7 +29,7 @@ used technologies:
 	1. NimBLE-Arduino
 	1. webserver
 
-# Thanks to
+#Thanks to
 Further i would love to give thanks to some projects i used and adjusted to work for my project
 https://github.com/JsBergbau/MiTemperature2
 This project gave me a good headstart for reading thermostats and inject it in my postgress database.
@@ -45,7 +45,7 @@ https://github.com/mpex/EQ3-Thermostat
 I used the eq3 control module and modified it to suit my needs for sending messages to my eq3 heads
 
 
-# The design
+#The design
 The design started pretty simple; Read the temperatures from the thermostats and if the temperature is lower than the set temperature, heat up the room. If it's higher stop heating.
 Pretty simple and in fact it is not much harder than this.
 I wanted to host all the modules as docker image, so they are easilly managed.
@@ -66,13 +66,13 @@ I created a front-end to visualise the heating system status of each room. It's 
 
 I will dive into my own modules individually and explain the logics and code. Standard modules such as the nefit easy server and the postgress database i will not cover.
 
-## The first module to explain is the thermostat container
+##The first module to explain is the thermostat container
 The code used is from https://github.com/JsBergbau/MiTemperature2, thanks!
 There is one modification i have done, because of errors i was getting during runtime.
 The command that will be run (from the Dockerfile) is 
-```
+'''
 python3 ./LYWSD03MMC.py -a -r -b -df sensors.ini -odl -wdt 60 -call SendtoDB.py
-```
+'''
 Do note that this is mentioned as ENTRYPOINT and i have put a CMD /bin/bash afterwards in the dockerfile, preventing docker to think that there are no foreground processes
 Going into sendtodb.py
 The standard code was providing an interface to send the data to an influx database. Because i needed to provide the data to a postgres database i created the 'SendtoDB.py' file.
@@ -83,7 +83,7 @@ In this case the reading module and the valve controlling module. If this is the
 The code will not crash (unfortunatly), but will keep on thinking it is connected, but actually is not. 
 configuring the supplied -wdt to 60 seconds means that if it will not recieve any readings for 60 seconds, it will re-start the thread.
 
-## The second module to explain is the onoff module
+##The second module to explain is the onoff module
 The basics for this module is prety simple. A loop which checks every minute for changes in the readings from database and sends signals to the radiator heads and heating system accordingly
 pretty simple huh!
 
@@ -113,7 +113,7 @@ I have chose for the valve to open to just put it to 30 degrees celsius. Closing
 Same for the CV.
 When the insync value is True, this means readings of the thermostat are not accurate (updated longer than 15 mintes ago). In this case i try to send the needed temperature to the valve, hoping the internal thermostat will do its job, until the bluetooth connection for readings stabilise again.
 
-## The third module to explain is the controller module
+##The third module to explain is the controller module
 The controller module is located in the controller folder and named 'verwarmcontroller.py'
 This is a Flask app, which will host several api's:
 1. verwarmingstatus
@@ -122,11 +122,11 @@ This is a Flask app, which will host several api's:
 1. setradiator
 ...and some other which are in development. Let me go over them one by one, starting with the most used "verwarmingstatus"
 
-### verwarmingstatus
+###verwarmingstatus
 verwarming is the dutch word for heating. essentially meaning heatingstatus
 verwarmstatus will return an object which is populated with values from the database, using dbocnfig.py
 it will return an array for each room that contains the following values:
-```
+'''
 "kamer":[
 {
 "tid": Id value for the room,
@@ -148,36 +148,36 @@ For each attached radiator it will attach and array of radiator valves
 	}]
 }],
 "tijd": Current time of returned object
-```
+'''
 
-### kamerschema
+###kamerschema
 Kamerschema will return a an object for a given room.
 The object will contain the heating schedule for the given room
-```
+'''
 [{
 	"dag": "null",
 	"tijd": "null",
 	"temp": "null"
 }]
-```
+'''
 usually this will contain multiple values for each switch point that is programmed for this room
 
-### setschedule
+###setschedule
 setschedule... excuse my english here, as the other api's are dutch
 This api will do what it says. It takes an input object in json, similarly like the kamerschema api. This api will delete the current schedule for the given room and replace insert all new values
 
-### setradiator
+###setradiator
 Set radiator api is maintained for updating the database with the current open or closed status of a valve. It is being called by the onoff module when it opens or closes a radiator.
 This way the database reflects the actual status of the valve (open/close).
 
-# Installation guidelines
+#installation guidelines
 1. Clone the GIT repo to your machine
-1. Modify the variables in dbconfig.py to match your situation
-1. Modify the docker-compose.yml NEFIT variables to match your situation
+1. Modify the variables in dbconfig.py to match your situation (DEPRECATED - use environment variables in next step in docker-compose)
+1. Modify the docker-compose.yml variables to match your situation
 1. Maybe you also want to look at the timezone details there. For some reason i have been struggling with this alot
 1. Modify the sensors.ini to match your sensor adresses and database keys
 1. Create the tables in your postgress database using following queries
-```
+'''
 CREATE TABLE verwarmschema.thermostaat (
 tid serial NOT NULL,
 mac varchar(100) NOT NULL,
@@ -226,7 +226,7 @@ datumtijd timestamp NOT NULL,
 CONSTRAINT radiator_history_pk PRIMARY KEY (rhid),
 CONSTRAINT radiator_history_radiator_fk FOREIGN KEY (fk_rid) REFERENCES verwarmschema.radiator(rid) ON DELETE CASCADE ON UPDATE CASCADE
 );
-```
+'''
 1. Now that you have your database set up, you should manually add room details in the main thermostat table (in sync with sensors.ini). Also add associated radiators in the radiator table. Be sure to put the right adresses for the thermostats and radiator valves. When using an ESP32 the nameconvention is '''esp32_ip@valve_mac''' for example: '''192.168.0.1@ae:01:e6:78:a1'''
 1. Also , which should be an improvement, is that there are some variables stored in the 'verwarmonoff.py' module, under the 'onoff' directory. The section is marked with comment 'configurable variables'.
 The most important variable here is the rpi adress, which should be pointing towards the nefit http server of robert klep.
@@ -235,50 +235,26 @@ smartheat variables are yet untested
 For usage of smartheating you should replace your apikey with yours. You can create it on api.weather.com.
 Also you should fill in your own logitide and latitude, of course.
 1. build your docker images with following command in the root folder of the repo
-`docker-compose build`
+'''
+docker-compose build
+'''
 this will take a while, as it also runs apt-get upgrade and update
-1. All set, run with `docker-compose up`
+1. All set, run with '''docker-compose up'''
 
 [optionally]
 If you experience problems with the range of your bluetooth to your valves, you will need to set up an ESP32 with http and bluetooth closer by.
 I've set it up to connect to my wifi and host an http server on port 80 which can receive commands from the eq3 object
 Navigate to the 'Http_EQ3_Control.ino' file and modify the wifi and password settings to match your situation (on line 7 and 8)
-```
+'''
 const char *ssid = "";
 const char *password = "";
-```
-
-Now you have your backend running, you need a front end to visualise it, right.
-I have two modules running in the frontend:
-1. A Own build home dashboard based on vue.js
-1. A Grafana docker image, with some dashboards visualizing in various interesting dashboards.
-
-## The home dashboard
-The home dashboard contains multiple tabs, including some stuff from other projects (automated lighting and watering of my garden and automated ventilation of my bathroom, based on humidity)
-This description will only focus on the front-end needed for this project.
-In the homedashboard directory you can find the dashboard source files. 
-I have set up an NGINX to serve these basic files, but you could choose your own favorite webserver.
-Import to set up, you will need to modify the rpi variable with your own ip adress.
-It is configured to load every minute and request the object from the controller module. 
-Also via this screen you could adjust the heating schedule, by clicking on one of the rooms and in the following screen click on the schedule to adjust a current one or the + sign to add a switch point.
-
-## Grafana frontend
-I'm running a grafana on the data, to visualize data and do analysis.
-Several dashboards are defined.
-1. thermometer - This shows the last readings of all the thermostats
-
-[optionally]
-I have configured a P1 monitor over a serial bus. This reads gas and energy usage from the smart meter, every 10 seconds.
-In this way you will be able to correlate more data and show for example the gas usage for each room as a result of heating (and shower)
+'''
 
 
-# Screenshots
-![Alt text](images/gasverbruik.png)
-![Alt text](images/homedashboard.png)
-![Alt text](images/thermometers.png)
+#screenshots
 
-# Todo
+
+#Todo
 1. replace sensors.ini with database content instead
 1. when starting for first time, create tables itself
-1. get rid of the variables in verwarmonoff.py and read them from database
 1. Use proper timezone settings...

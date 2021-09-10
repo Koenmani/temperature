@@ -8,6 +8,7 @@ from datetime import date
 from dateutil import tz
 import psycopg2
 from psycopg2 import OperationalError, errorcodes, errors
+import dbconfig
 
 def cur_time():
 	utc = datetime.now()
@@ -28,7 +29,7 @@ def savetodb(val_sensor, val_temp, val_hum, val_bat):
 	utc = utc.astimezone(tz.gettz('Europe/Amsterdam'))
 	datumtijd = datetime.strftime(utc, "%m/%d/%Y, %H:%M:%S")
 	try:
-		conn = psycopg2.connect(host="localhost",database="verwarming",user="postgres",password="docker")
+		conn = psycopg2.connect(host=dbconfig.dbip,database=dbconfig.dbname,user=dbconfig.dbuser,password=dbconfig.dbpass)
 		cur = conn.cursor()
 		#print("%s Connected to database" % (cur_time(),), file=sys.stderr)
 		print("[%s] Connected to database" % (cur_time(),))

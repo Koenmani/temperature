@@ -6,6 +6,7 @@ import subprocess
 import time
 import requests
 import traceback
+import sys
 
 class EQ3Thermostat(object):
 
@@ -83,7 +84,7 @@ class EQ3Thermostat(object):
                                 "-a", "0x0411", "-n", "4040"],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except:
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stderr)
             self.failedtimes = self.failedtimes + 1
             return False
 
@@ -121,7 +122,7 @@ class EQ3Thermostat(object):
     	        #print(stdout)
                 time.sleep(3)
         except:
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stderr)
             self.failedtimes = self.failedtimes + 1
             return False
     
@@ -155,7 +156,7 @@ class EQ3Thermostat(object):
                     self.failedtimes = self.failedtimes + 1
                     return False
         except:
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stderr)
             self.failedtimes = self.failedtimes + 1
             return False
     
@@ -189,7 +190,7 @@ class EQ3Thermostat(object):
                     self.failedtimes = self.failedtimes + 1
                     return False
         except:
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stderr)
             self.failedtimes = self.failedtimes + 1
             return False
 

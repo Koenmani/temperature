@@ -4,8 +4,8 @@
 #include <ESPmDNS.h>
 #include <NimBLEDevice.h>
 
-const char *ssid = "";
-const char *password = "";
+const char *ssid = "VBwifiBerging";
+const char *password = "Hoera888";
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
 static BLEUUID serviceUUID("3e135142-654f-9090-134a-a6ff5bb77046");

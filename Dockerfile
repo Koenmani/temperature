@@ -20,3 +20,4 @@ ENTRYPOINT service dbus start
 
 ENTRYPOINT while true; do python3 ./LYWSD03MMC.py -a -r -b -df sensors.ini -odl -wdt 60 -call SendtoDB.py; done
 CMD /bin/bash
+ 
