@@ -374,7 +374,7 @@ try:
 					if len(radiator_open) > 0:
 						print("%s Radiators are open, warming up CV" % (cur_time(),), file=sys.stderr)
 						print("%s Biggest difference %s and heating offset %s" % (cur_time(),tempdiff,heating_offset), file=sys.stderr)
-						if tempdiff > heating_offset: 
+						if float(tempdiff) > float(heating_offset): 
 							#Only heat up the boiler is there is at least one room where the temp exceeds the heating offset 
 							#and warm water is still in the pipes
 							print("%s There is a huge temperature difference, warming up CV" % (cur_time(),), file=sys.stderr)
