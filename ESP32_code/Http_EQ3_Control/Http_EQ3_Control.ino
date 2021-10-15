@@ -3,12 +3,14 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <NimBLEDevice.h>
+#include <stdlib.h>
 
 const char *ssid = "VBwifiBerging";
 const char *password = "Hoera888";
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
 static BLEUUID serviceUUID("3e135142-654f-9090-134a-a6ff5bb77046");
+static BLEUUID    xUUID("2A1F");
 static BLEUUID    charUUID("3fa4585a-ce4a-3bad-db4b-b8df8179ea09");
 static BLEClient*  pClient;
 static bool isConnected = false;
@@ -18,8 +20,12 @@ IPAddress gateway(192, 168, 0, 2);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress primaryDNS(192, 168, 0, 125); //optional
 IPAddress secondaryDNS(8, 8, 8, 8); //optional
+IPAddress ipserver(192, 168, 0, 125);
+//IPAddress ipserver(192, 168, 0, 153);
 
 WebServer server(80);
+WiFiClient client;
+BLEScan* pBLEScan;
 
 void handleNotFound() {
   String message = "File Not Found\n\n";
@@ -226,6 +232,67 @@ void SetTemp() {
   server.send(200, "application/json", out);
 }
 
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+
+float BitShiftCombine( unsigned char x_high, unsigned char x_low)
+      {
+        int combined;
+        combined = x_high;              //send x_high to rightmost 8 bits
+        combined = combined<<8;         //shift x_high over to leftmost 8 bits
+        combined |= x_low;                 //logical OR keeps x_high intact in combined and fills in                                                             //rightmost 8 bits
+        return combined;
+      }
+  void onResult(BLEAdvertisedDevice* advertisedDevice) {
+    String naam = advertisedDevice->getName().c_str();
+    String firstFour = naam.substring(0,4);
+    
+    if (firstFour == "ATC_") {
+      //Serial.print("Found ServiceUUID: ");
+      //Serial.println(devUUID.toString().c_str());
+      //Serial.println("");
+      std::string serviceData = advertisedDevice->getServiceData();
+      std::string mac = advertisedDevice->getAddress();
+      
+      const char *val = serviceData.c_str();
+      Serial.print("Hex: ");
+      for (int i = 0; i < 19; i++) {
+        Serial.print((int)val[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println(" ");
+      Serial.print("Hum: ");
+      Serial.println((int)val[8]);
+      Serial.print("Bat: ");
+      Serial.println((int)val[9]);
+      
+      float temp_raw = BitShiftCombine(val[6],val[7]) / 10;
+      Serial.print("temp: ");
+      Serial.println(temp_raw);
+         
+      Serial.println(naam);
+      if (client.connect(ipserver, 6543)) {
+      //if (client.connect(ipserver, 5000)) {
+          Serial.println("connected");
+          // Make a HTTP request:
+          client.print("GET /setreading?");
+          client.print("hum=");
+          client.print((int)val[8]);
+          client.print("&");
+          client.print("bat=");
+          client.print((int)val[9]);
+          client.print("&");
+          client.print("temp=");
+          client.print(temp_raw);
+          client.print("&");
+          client.print("mac=");
+          client.print(mac.c_str());
+          client.print(" HTTP/1.0");
+          client.println();
+      }
+    }
+  } 
+}; 
+
 void setup(void) {
 
   Serial.begin(115200);
@@ -261,8 +328,20 @@ void setup(void) {
   
   Serial.println("Starting Arduino BLE Client application...");
   BLEDevice::init("");
+
+  // Retrieve a Scanner and set the callback we want to use to be informed when we
+  // have detected a new device.  Specify that we want active scanning and start the
+  // scan to run for 5 seconds.
+  pBLEScan = BLEDevice::getScan(); //create new scan
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setInterval(1349);
+  pBLEScan->setWindow(449);
+  pBLEScan->setActiveScan(true);
+  
 }
 
 void loop(void) {
   server.handleClient();
+  pBLEScan->start(5, false);
+  pBLEScan->clearResults();
 }
