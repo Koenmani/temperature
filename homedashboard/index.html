@@ -10,6 +10,7 @@
 	        <a v-on:click="activetab=1" v-bind:class="[ activetab === 1 ? 'active' : '' ]">Homecontrol</a>
 	        <a v-on:click="activetab=2" v-bind:class="[ activetab === 2 ? 'active' : '' ]">Energy/Gas</a>
 	        <a v-on:click="activetab=3" v-bind:class="[ activetab === 3 ? 'active' : '' ]">Watering</a>
+	        <a v-on:click="activetab=4" v-bind:class="[ activetab === 4 ? 'active' : '' ]">Verwarming</a>
 	    </div>
 	
 	    <div class="content">
@@ -18,7 +19,7 @@
 					<div v-bind:class="[ lighting === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="toggle_light()">
 						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Buitenlampen</div>
 					</div>
-					<div v-bind:class="[ verwarming === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]">
+					<div v-bind:class="[ verwarming === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="activetab=4">
 						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Verwarming</div>
 					</div>
 					<div v-bind:class="[ ventilator === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="toggle_vent()">
@@ -59,12 +60,38 @@
 				</div>	
 				</div>
 	        </div>
+	        <div v-if="activetab === 4" class="tabcontent">
+				<div class="status_wrapper">
+					<div v-bind:class="[ lighting === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="toggle_light()">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Buitenlampen</div>
+					</div>
+					<div v-bind:class="[ verwarming === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Verwarming</div>
+					</div>
+					<div v-bind:class="[ ventilator === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="toggle_vent()">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Ventilator</div>
+					</div>
+					<div v-bind:class="[ watering_status === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="activetab=3">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Watering</div>
+					</div>
+				</div>
+				<div class="kamer_wrapper">
+					<div v-if="activekmr_cfg === 0">
+						<kamers v-for="(item, index) in kamer_obj" :item="item" :key="index"></kamers>
+					</div>
+					<div v-if="activekmr_cfg > 0">
+						<kamer_cfg :item="kamer_obj[activekmr_cfg-1]" :schema="schema_obj"></kamer_cfg>
+					</div>
+				</div>
+	        </div>
 	    </div>
 	</div>
 </body>
 <script src="balk.js"></script>
+<script src="togglebutton.js"></script>
 <script src="popup.js"></script>
 <script src="rooms.js"></script>
+<script src="room_cfg.js"></script>
 <script src="room.js"></script>
 <script src="zones.js"></script>
 <script src="programs.js"></script>
@@ -78,6 +105,7 @@ const VM = new Vue({
     kamers: Rooms,
     programs: Programs,
     kamer: Room,
+    kamer_cfg: Room_cfg,
     zones: Zones,
     popup: Popup
   },  
@@ -87,6 +115,7 @@ const VM = new Vue({
     timer: '',
     activetab: 1,
     activekmr: 0,
+    activekmr_cfg: 0,
     activeschema: "",
     verwarming:false,
     lighting:false,
@@ -125,7 +154,7 @@ const VM = new Vue({
 	this.fetchwaterstatus()
 	this.timer = setInterval(this.fetchwaterstatus, 60000) 
   },
-  methods: {
+  methods: {	
 	toggle_light(){
 		if (this.lighting == false){
 			fetch(rpi+'/lighton')
@@ -171,7 +200,7 @@ const VM = new Vue({
 			})
 		}
 	},fetchkamers(){
-		fetch(this.url+'/verwarmingstatus')
+		fetch('http://192.168.0.155:5000/verwarmingstatus')
 		.then(response => response.json())
 		.then(json => {
 			this.kamer_obj = json['kamer']

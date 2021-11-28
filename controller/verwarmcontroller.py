@@ -76,7 +76,7 @@ def settemp():
 			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
 
 @app.route("/overwriteschedule", methods=['POST'])
-def setmanual():
+def setmanual2():
 	global conn,cur
 	#stel een temperatuur in voor een bepaalde kamer
 	#post request bevat kamer nr en gewenste temp
@@ -97,6 +97,66 @@ def setmanual():
 				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
 		else:
 			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
+			
+@app.route("/setreading", methods=['GET'])
+def setreading():
+	global conn,cur
+	utc = datetime.now()
+	utc = utc.replace(tzinfo=tz.gettz('UTC'))
+	#utc = utc.replace(tzinfo=tz.gettz('Europe/Amsterdam'))
+	utc = utc.astimezone(tz.gettz('Europe/Amsterdam'))
+	datumtijd = datetime.strftime(utc, "%m/%d/%Y, %H:%M:%S")
+	if request.method == 'GET':
+		hum=request.args['hum']
+		bat=request.args['bat']
+		temp=request.args['temp']
+		mac=request.args['mac']
+		#print("%s Received data %s" % (cur_time(),data), file=sys.stderr)
+		if connectdb():
+			try:
+				#see if sensor already exists
+				cur.execute( "SELECT * FROM verwarmschema.thermostaat WHERE mac=upper('%s')" % (mac,) )
+				if cur.rowcount != 0:
+					#check date and values of last update
+					#if values are same and update is less than 10min ago, dont do anything
+					#if values are different or update is longer than 10min, update db
+					result = cur.fetchone()
+					tid = result[0]
+					#last_reading = datetime.strptime(result[3], "%m/%d/%Y, %H:%M:%S")
+					last_reading = result[3]
+					last_reading = last_reading.replace(tzinfo=tz.gettz('Europe/Amsterdam'))
+					print("[%s] Comparing times current-10: %s with database %s" % (cur_time(),(utc + timedelta(minutes=-10)),last_reading))
+					if ((utc + timedelta(minutes=-10)) > last_reading): #if its longer than 10min ago since last reading... add it anyway
+						cur.execute( "INSERT INTO verwarmschema.thermostaat_details (fk_tid,datumtijd,temp,vocht,batterij) VALUES ('%s','%s','%s','%s','%s')" % (tid,datumtijd,temp,hum,bat) )
+						cur.execute( "UPDATE verwarmschema.thermostaat SET huidige_temp='%s',datumtijd='%s',luchtvocht='%s',batterij_level='%s'  WHERE tid='%s'" % (temp,datumtijd,hum,bat,tid,) )
+						conn.commit()
+						print("[%s] Updated in database based on time" % (cur_time(),))
+						return jsonify('done')
+					else:
+						#check if data is different
+						db_temp = result[4]
+						db_hum = result[5]
+						db_bat = result[6]
+						if ((float(db_temp) != float(temp)) or (int(db_hum) != int(hum)) or (int(db_bat) != int(bat))):
+							cur.execute( "INSERT INTO verwarmschema.thermostaat_details (fk_tid,datumtijd,temp,vocht,batterij) VALUES ('%s','%s','%s','%s','%s')" % (tid,datumtijd,temp,hum,bat) )
+							cur.execute( "UPDATE verwarmschema.thermostaat SET huidige_temp='%s',datumtijd='%s',luchtvocht='%s',batterij_level='%s'  WHERE tid='%s'" % (temp,datumtijd,hum,bat,tid,) )
+							conn.commit()
+							print("[%s] Updated in database based on value diff" % (cur_time(),))
+							return jsonify('done')
+						else:
+							print("[%s] Same readings within 10 min, no need to update" % (cur_time(),))
+							return jsonify('done')
+				else:
+					print("[%s] Sensor does not exist in database. You need to add it manually" % (cur_time(),))
+			except Exception as err:
+				# pass exception to function
+				#print_psycopg2_exception(err)
+				# rollback the previous transaction before starting another
+				print(traceback.format_exc())
+				conn.close()
+				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+		else:
+			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
 
 @app.route("/verwarmingstatus")
 def verwarmingstatus():
@@ -105,7 +165,7 @@ def verwarmingstatus():
 	global conn,cur
 	if connectdb():
 		try:
-			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
+			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
 			conn.commit()
 			if cur.rowcount != 0:
 				x = {"kamer" : [], "tijd" :[]}
@@ -187,7 +247,7 @@ def verwarmingstatus():
 								temp = last_r[3]
 								dag3 = last_r[2]
 							if temp == 0:
-								#this means we haven't last switch point, because day = 1 and the last switch point is actually the last record
+								#this means we haven't found last switch point, because day = 1 and the last switch point is actually the last record
 								#example: day = 1 and before the first switch point
 								temp = last_r[3]
 								dag3 = last_r[2]
@@ -199,11 +259,17 @@ def verwarmingstatus():
 							dag3 = 0
 							#something really wrong. why would you set to automatic mode without schedule?
 						
-						if result[5] == "1": #temp is manually set and should overwrite existing schedule
-							#temp = result[3]
-							#handmatig = True
+						if result[5] == 1: #temp is manually set and should overwrite existing schedule
 							#unless time has passed, so it should switch back to the schedule
-							a=0
+							switch_time = result[10]
+							switch_time = switch_time.replace(tzinfo=tz.gettz('Europe/Amsterdam'))
+							if nu > switch_time:
+								cur.execute( "UPDATE verwarmschema.thermostaat SET handmatig='0', ingestelde_temp=null, handmatig_tijd=null WHERE tid='%s'" % (result[0],) )
+								conn.commit()
+								handmatig = False
+							else:
+								temp = result[3]
+								handmatig = True
 						
 						if y:
 							x['kamer'].append(y)
@@ -291,6 +357,85 @@ def getsensors():
 	#resulteerd een array met sensor mac adressen en nrs
 	#mogelijk voor input voor LYWSD03MMC.py
 	a=0
+
+@app.route("/setmanual")
+def setmanual():
+	global conn,cur
+	#zet de status van een radiator naar handmatig (on) of automatisch (off) met de juiste temp en switch to automatic (time)
+	# POST /setmanual?tid=xx&manual=on&temp=20.5&time=
+	# POST /setmanual?tid=xx&manual=off
+	if request.method == 'POST':
+		print("%s Parsing requested values from POST" % (cur_time(),), file=sys.stderr)
+		manual=request.form['manual']
+		tid = request.form['tid']
+		try:
+			temp=request.form['temp']
+		except:
+			temp=None
+			#this is fine, probably the manual mode has been release by user
+		print("%s Got the manual(%s), tid(%s) and the temp(%s)" % (cur_time(),manual,tid,temp), file=sys.stderr)	
+		try:
+			tijd=request.form['tijd']
+		except:
+			tijd=None
+		parsed = True
+	elif request.method == 'GET':
+		print("%s Parsing requested values from GET" % (cur_time(),), file=sys.stderr)
+		manual=request.args['manual']
+		tid = request.args['tid']
+		try:
+			temp=request.args['temp']
+		except:
+			temp=None
+			#this is fine, probably the manual mode has been release by user
+		print("%s Got the manual(%s), tid(%s) and the temp(%s)" % (cur_time(),manual,tid,temp), file=sys.stderr)	
+		try:
+			tijd=request.args['tijd']
+		except:
+			tijd=None
+		parsed = True
+	else:
+		return jsonify('fail')
+		
+	if parsed:		
+		if tijd != None:	
+			try:
+				nu = datetime.today()
+				nu = nu.replace(tzinfo=tz.gettz('UTC'))
+				nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
+				#temp_time = time(int(tijd.split(':')[0]),int(tijd.split(':')[1]),0)
+				switch_time = nu.replace(hour=int(tijd.split(':')[0]),minute=int(tijd.split(':')[1]))
+			
+				if switch_time < nu:
+					switch_time = switch_time + timedelta(days=1)
+			except:
+				#something is wrong,  don't do anything
+				print("%s Failed to calculate next switch point for manual -> automatic" % (cur_time(),), file=sys.stderr)
+				return jsonify('fail')			
+		else:
+			switch_time=None
+			#this is fine, probably the manual mode has been release by user
+		
+		print("%s Also got the requested time(%s) translated into next switch point(%s)" % (cur_time(),tijd,switch_time), file=sys.stderr)	
+		if manual == "on":
+			v = 1
+		else:
+			v = 0
+	
+		
+		if connectdb():
+			try:
+				print("%s Updating db " % (cur_time(),), file=sys.stderr)
+				cur.execute( "UPDATE verwarmschema.thermostaat SET handmatig='%s', ingestelde_temp='%s', handmatig_tijd='%s' WHERE tid='%s'" % (v,temp,switch_time,tid) )
+				conn.commit()
+				return jsonify('done')
+			except Exception as err:
+				conn.close()
+				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+				return jsonify('fail')				
+		else:
+			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
+			return jsonify('fail')
 	
 @app.route("/setradiator", methods=['POST'])
 def setradiator():

@@ -102,15 +102,15 @@ else:
 if os.getenv("VERWARMING_ONOFF_LON") is not None:
 	longitude = os.getenv("VERWARMING_ONOFF_LON")
 else:
-	longitude = '' 
+	longitude = '4.60' 
 if os.getenv("VERWARMING_ONOFF_LAT") is not None:
 	latitude = os.getenv("VERWARMING_ONOFF_LAT")
 else:
-	latitude = '' 
+	latitude = '51.87' 
 if os.getenv("VERWARMING_ONOFF_API") is not None:
 	apikey = os.getenv("VERWARMING_ONOFF_API")
 else:
-	apikey = ""
+	apikey = "b3e2781468f747d3a2781468f7d7d30b"
 
 try:
 	print("%s Starting up for the first time" % (cur_time(),), file=sys.stderr)
@@ -320,6 +320,7 @@ try:
 					
 					#loop through all radiator heads and see if it needs to be set to open or close
 					t4 = 0
+					serious_radiator_problem = False
 					while t4 < len(radiator_list):
 						if radiator_list[t4].address in radiator_open:
 							print("%s Opening radiator %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
@@ -347,9 +348,9 @@ try:
 
 						else:
 							raise Exception('Unknown radiator head('+radiator_list[t4].address+'), something is terribly wrong')
-						if radiator_list[t4].failedtimes > 30: #something is wrong... more than 3 minutes of failures
+						if radiator_list[t4].failedtimes > 15: #something is wrong... more than 15 minutes of failures
 							radiator_list[t4].status = 'error'
-						
+							serious_radiator_problem = True 
 						
 						#send radiator and CV status to database
 						try:
@@ -372,6 +373,14 @@ try:
 				try:
 					#if there are any rooms that need heating, heat up boiler
 					if len(radiator_open) > 0:
+						if serious_radiator_problem:
+							#If a closing radiator is in error for 15min, we should close CV as well... else it will overheat
+							#unless there is nothing else open anyway
+							print("%s Closing_radiator_problem, closing CV to prevent overheat" % (cur_time(),), file=sys.stderr)
+							if CV_openclose(5):
+								verwarming = False
+								heatingcounter = 0
+						
 						print("%s Radiators are open, warming up CV" % (cur_time(),), file=sys.stderr)
 						print("%s Biggest difference %s and heating offset %s" % (cur_time(),tempdiff,heating_offset), file=sys.stderr)
 						if float(tempdiff) > float(heating_offset): 

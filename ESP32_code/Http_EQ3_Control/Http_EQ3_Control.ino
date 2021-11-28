@@ -344,4 +344,10 @@ void loop(void) {
   server.handleClient();
   pBLEScan->start(5, false);
   pBLEScan->clearResults();
+  if ( status != WL_CONNECTED) {
+    // wait 10 seconds for connection:
+    delay(10000);
+    Serial.print("Attempting to re-connect to wifi");
+    WiFi.begin(ssid, password);
+  }
 }

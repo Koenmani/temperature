@@ -94,6 +94,12 @@
 	background-size:30%;
 	background-position: center;
 }
+.handmatig{
+	background-image: url("manual.png");
+	background-repeat: no-repeat;
+	background-size:10%;
+	background-position: center;
+}
 .enkele_kamer{
 	width:95%;
 	height:95%;
