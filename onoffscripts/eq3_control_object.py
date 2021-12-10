@@ -22,6 +22,8 @@ class EQ3Thermostat(object):
         self.temperature = -1
         self.failedtimes = 0
         self.status = 'initializing'
+        self.lowbattery = False
+        self.force_command = 0
         #self.update()
 
     def update(self):
@@ -37,8 +39,16 @@ class EQ3Thermostat(object):
 
         if "Notification handle" in value_string:
             value_string_splt = value_string.split()
-            temperature = value_string_splt[-1]
+            #temperature = value_string_splt[-1]
             locked = value_string_splt[-4]
+            batt = value_string_splt[-13]
+            BITMASK_BATTERY = 0x80
+            
+            if batt & BITMASK_BATTERY:
+            	self.lowbattery = True
+            else:
+            	self.lowbattery = False
+            
             try:
                 subprocess.Popen.kill(p)
             except ProcessLookupError:
@@ -50,11 +60,14 @@ class EQ3Thermostat(object):
                 self.locked = False
             else:
                 print("Could not read lockstate of {}".format(self.address))
-
-            try:
-                self.temperature = int(temperature, 16) / 2
-            except Exception as e:
-                print("Getting temperature of {} failed {}".format(self.address, e))
+            return True
+			
+            #try:
+            #    self.temperature = int(temperature, 16) / 2
+            #except Exception as e:
+            #    print("Getting temperature of {} failed {}".format(self.address, e))
+        else:
+        	return False
 
     def activate_boostmode(self):
         """Boostmode fully opens the thermostat for 300sec."""

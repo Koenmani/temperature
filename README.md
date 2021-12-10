@@ -119,7 +119,11 @@ This is a Flask app, which will host several api's:
 1. verwarmingstatus
 1. kamerschema
 1. setschedule
-1. setradiator
+1. setradiatorvalve
+1. setradiatorbattery
+1. setmanual
+1. setreading
+1. overwriteschedule
 ...and some other which are in development. Let me go over them one by one, starting with the most used "verwarmingstatus"
 
 ###verwarmingstatus
@@ -166,9 +170,51 @@ usually this will contain multiple values for each switch point that is programm
 setschedule... excuse my english here, as the other api's are dutch
 This api will do what it says. It takes an input object in json, similarly like the kamerschema api. This api will delete the current schedule for the given room and replace insert all new values
 
-###setradiator
+###setradiatorvalve
 Set radiator api is maintained for updating the database with the current open or closed status of a valve. It is being called by the onoff module when it opens or closes a radiator.
 This way the database reflects the actual status of the valve (open/close).
+The POST request should contain the following parameters:
+[{
+	valve: , integer value 0 if valve is closed, 1 if its open
+	mac: , The mac adres of the thermostat
+}]
+
+###setradiatorbattery
+Set radiator api is maintained for updating the database with the current battery status of a valve. It is being called by the onoff module when it updates the status once every hour.
+This way the database reflects the actual status of the valve (true/false). A false value means the battery is not low. A true value obviously means we should change the battery.
+The POST request should contain the following parameters:
+[{
+	lowbattery: , True or False is battery is low or not
+	mac: , The mac adres of the thermostat
+}]
+
+###setmanual
+[in development] This api is used to set a radiator to manual modus 
+
+###settemp
+[in development] This api is used to set a radiator to a specific temperature 
+
+###setreading
+This api mimics the implementation of the bluetooth thermostat reader. With this api you can update the database with new received values for any thermostat. This is used for the ESP32 which catches readings and forwards this to thecontroller module to update the database. I will be thinking about implementing this as well for the sendtodb.py file which is called by the bluetooth receiver.
+The POST request should contain the following parameters:
+[{
+	hum: , Humidity in integer
+	bat: , Battery level in integer
+	temp: , Temperature in float
+	mac: , The mac adres of the thermostat
+}]
+This api will update both the latest reading as well as the historical readings table
+
+###overwriteschedule
+[in development] This api is called to update the schedule for a given room. It will delete the existing schedule and write a new one to the database
+I am aware there are some bugs here and there. Need to fix it.
+Post should contain following object
+[{
+	dag: , Day in number format 1 = monday, 7 = sunday
+	temp: , The set temperature in float
+	tijd:'00:00' The time in string with semicolum delimiter
+}]
+This can contain multiple days
 
 #installation guidelines
 1. Clone the GIT repo to your machine
@@ -188,7 +234,8 @@ huidige_temp float4 NULL,
 luchtvocht int NULL,
 batterij_level int NULL,
 handmatig int4 NOT NULL DEFAULT 0,
-smartheat bool NOT NULL DEFAULT false;
+smartheat bool NOT NULL DEFAULT false,
+Handmatig_tijd timestamp NULL;
 CONSTRAINT thermostaat_pk PRIMARY KEY (tid)
 );
 CREATE TABLE verwarmschema.radiator (
@@ -196,6 +243,7 @@ rid serial NOT NULL,
 mac varchar(100) NOT NULL,
 fk_tid int NOT NULL,
 open_close int NULL,
+lowbattery bool NOT NULL DEFAULT false,
 CONSTRAINT radiator_pk PRIMARY KEY (rid),
 CONSTRAINT radiator_thermostaat_fk FOREIGN KEY (fk_tid) REFERENCES verwarmschema.thermostaat(tid) ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -255,6 +303,9 @@ const char *password = "";
 
 
 #Todo
+1. Set room in manual mode and set temperature properly
+1. Implement a vacation modus
 1. replace sensors.ini with database content instead
 1. when starting for first time, create tables itself
 1. Use proper timezone settings...
+1. fix bugs in 

@@ -125,12 +125,12 @@ def setreading():
 					#last_reading = datetime.strptime(result[3], "%m/%d/%Y, %H:%M:%S")
 					last_reading = result[3]
 					last_reading = last_reading.replace(tzinfo=tz.gettz('Europe/Amsterdam'))
-					print("[%s] Comparing times current-10: %s with database %s" % (cur_time(),(utc + timedelta(minutes=-10)),last_reading))
+					#print("[%s] Comparing times current-10: %s with database %s" % (cur_time(),(utc + timedelta(minutes=-10)),last_reading))
 					if ((utc + timedelta(minutes=-10)) > last_reading): #if its longer than 10min ago since last reading... add it anyway
 						cur.execute( "INSERT INTO verwarmschema.thermostaat_details (fk_tid,datumtijd,temp,vocht,batterij) VALUES ('%s','%s','%s','%s','%s')" % (tid,datumtijd,temp,hum,bat) )
 						cur.execute( "UPDATE verwarmschema.thermostaat SET huidige_temp='%s',datumtijd='%s',luchtvocht='%s',batterij_level='%s'  WHERE tid='%s'" % (temp,datumtijd,hum,bat,tid,) )
 						conn.commit()
-						print("[%s] Updated in database based on time" % (cur_time(),))
+						#print("[%s] Updated in database based on time" % (cur_time(),))
 						return jsonify('done')
 					else:
 						#check if data is different
@@ -141,10 +141,10 @@ def setreading():
 							cur.execute( "INSERT INTO verwarmschema.thermostaat_details (fk_tid,datumtijd,temp,vocht,batterij) VALUES ('%s','%s','%s','%s','%s')" % (tid,datumtijd,temp,hum,bat) )
 							cur.execute( "UPDATE verwarmschema.thermostaat SET huidige_temp='%s',datumtijd='%s',luchtvocht='%s',batterij_level='%s'  WHERE tid='%s'" % (temp,datumtijd,hum,bat,tid,) )
 							conn.commit()
-							print("[%s] Updated in database based on value diff" % (cur_time(),))
+							#print("[%s] Updated in database based on value diff" % (cur_time(),))
 							return jsonify('done')
 						else:
-							print("[%s] Same readings within 10 min, no need to update" % (cur_time(),))
+							#print("[%s] Same readings within 10 min, no need to update" % (cur_time(),))
 							return jsonify('done')
 				else:
 					print("[%s] Sensor does not exist in database. You need to add it manually" % (cur_time(),))
@@ -437,7 +437,30 @@ def setmanual():
 			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
 			return jsonify('fail')
 	
-@app.route("/setradiator", methods=['POST'])
+@app.route("/setradiatorbattery", methods=['POST'])
+def setradiatorbattery():
+	global conn,cur
+	#zet de status van een radiator naar open of dicht
+	# POST /setradiator?valve=on
+	# POST /setradiator?valve=off
+	if request.method == 'POST':
+		battery_status=request.form['lowbattery']
+		mac=request.form['mac']
+		
+		if connectdb():
+			try:
+				cur.execute( "UPDATE verwarmschema.radiator SET lowbattery='%s' WHERE mac='%s'" % (battery_status,mac) )
+				conn.commit()
+				return jsonify('done')
+			except Exception as err:
+				conn.close()
+				return jsonify('fail')
+				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+		else:
+			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
+			return jsonify('fail')
+
+@app.route("/setradiatorvalve", methods=['POST'])
 def setradiator():
 	global conn,cur
 	#zet de status van een radiator naar open of dicht
@@ -445,13 +468,16 @@ def setradiator():
 	# POST /setradiator?valve=off
 	if request.method == 'POST':
 		valve_status=request.form['valve']
-		mac=request.form['mac']
+		
 		if valve_status == "on":
 			v = 1
 		elif valve_status == "error":
 			v = 99
 		else:
 			v = 0
+		
+		mac=request.form['mac']
+		
 		if connectdb():
 			try:
 				cur.execute( "UPDATE verwarmschema.radiator SET open_close='%s' WHERE mac='%s'" % (v,mac) )

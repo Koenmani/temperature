@@ -76,6 +76,7 @@ time.sleep(5) #wait for other modules to be available
 forecast = None #This is used to load the weather forecast, to determine if we should heat up if smartheating = true
 verwarming = False
 radiator_list = []
+updatecounter = 0 #this is a counter which is used to keep track of when to call the radiator head update, so low battery status is checked
 first_load = True
 heatingcounter = 0 #Sometimes connection is lost with CV, need to at least send a signal every 15min
 smartheatingcounter = 0 #we dont want to load every minute. twice a day is enough = 720 minutes/counters
@@ -324,23 +325,28 @@ try:
 					while t4 < len(radiator_list):
 						if radiator_list[t4].address in radiator_open:
 							print("%s Opening radiator %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
-							if radiator_list[t4].temperature == 100 and radiator_list[t4].status != 'error':
+							if radiator_list[t4].temperature == 100 and radiator_list[t4].status != 'error' and radiator_list[t4].force_command < 5: #force a fresh signal at least every 5 minutes
 								radiator_list[t4].status = 'on' #radiator is already open, don't do anything
 								print("%s Radiator already open" % (cur_time(),), file=sys.stderr)
+								radiator_list[t4].force_command = radiator_list[t4].force_command + 1
 							else:
 								if radiator_list[t4].set_valve_open():
 									print("%s Success for %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
 									radiator_list[t4].status = 'on'
+									radiator_list[t4].force_command = 0
 								else:
 									print("%s Failed for %s, retry next time" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
 						elif radiator_list[t4].address in radiator_close:
 							print("%s Closing radiator %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
-							if radiator_list[t4].temperature == 0 and radiator_list[t4].status != 'error':
+							if radiator_list[t4].temperature == 0 and radiator_list[t4].status != 'error' and radiator_list[t4].force_command < 5: #force a fresh signal at least every 5 minutes
 								radiator_list[t4].status = 'off' #radiator is already closed, don't do anything
+								print("%s Radiator already closed" % (cur_time(),), file=sys.stderr)
+								radiator_list[t4].force_command = radiator_list[t4].force_command + 1
 							else:
 								if radiator_list[t4].set_valve_close():
 									print("%s Success for %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
 									radiator_list[t4].status = 'off'
+									radiator_list[t4].force_command = 0
 								else:
 									print("%s Failed for %s, retry next time" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
 						elif radiator_list[t4].address in manualmode:
@@ -359,7 +365,7 @@ try:
 							if radiator_list[t4].remoteaddress:
 								a = radiator_list[t4].address+"@"+radiator_list[t4].remoteaddress							
 							rpi_temp = rpi.split(":")[0]+":"+rpi.split(":")[1]
-							r = requests.post(rpi_temp+':6543/setradiator', data = {'valve' : radiator_list[t4].status, 'mac': a}, timeout=5)
+							r = requests.post(rpi_temp+':6543/setradiatorvalve', data = {'valve' : radiator_list[t4].status, 'mac': a}, timeout=5)
 							#r = requests.post('http://192.168.0.158:5000/setradiator', data = {'valve' : status, 'mac': radiator_list[t4].address})
 						except:
 							traceback.print_exc()
@@ -422,6 +428,24 @@ try:
 					
 			print("%s Waiting for one minute for next batch" % (cur_time(),), file=sys.stderr)
 			time.sleep(60)
+			updatecounter = updatecounter + 1
+			if updatecounter > 60: #call update every hour to check for battery status
+				t4 = 0
+				while t4 < len(radiator_list):
+					try:
+						print("%s Checking for battery for %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
+						if radiator_list[t4].update:
+							print("%s Lowbattery status %s " % (cur_time(),radiator_list[t4].lowbattery), file=sys.stderr)
+						a = radiator_list[t4].address
+						if radiator_list[t4].remoteaddress:
+							a = radiator_list[t4].address+"@"+radiator_list[t4].remoteaddress
+						rpi_temp = rpi.split(":")[0]+":"+rpi.split(":")[1]
+						r = requests.post(rpi_temp+':6543/setradiatorbattery', data = {'lowbattery' : str(radiator_list[t4].lowbattery), 'mac': a}, timeout=5)
+					except:
+						traceback.print_exc()
+						print("%s Failed to send radiator status to database for %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
+					t4 = t4 + 1
+				updatecounter = 0
 				
 		except KeyboardInterrupt:
 			print("%s netjes afsluiten" % (cur_time(),), file=sys.stderr)
