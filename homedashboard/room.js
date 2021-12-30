@@ -84,6 +84,7 @@ const Room = {
 			if ((this.$root.schema_obj.length == 0) || ((this.$root.schema_obj.length <= 1) && (this.$root.schema_obj.dag==null))){
 				if (this.$root.schema_obj.length == 0){
 					newobj = {
+						sid:'new',
 						dag:dag,
 						temp:tempje,
 						tijd:tijdje
@@ -124,6 +125,7 @@ const Room = {
 				tijdje = newtime1+":"+newtime2
 				
 				newobj = {
+					sid:'new',
 					dag:dag,
 					temp:this.$root.schema_obj[this.$root.schema_obj.length-1].temp,
 					tijd:tijdje

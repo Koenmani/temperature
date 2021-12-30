@@ -67,9 +67,15 @@ const Popup = {
 		//	}
 		//}
 		
+		//bd = {
+		//	kmrnr: this.$root.activekmr,
+		//	obj: this.$root.schema_obj
+		//}
+		key = parseInt(this.tijd.split("_")[3])
 		bd = {
-			kmrnr: this.$root.activekmr,
-			obj: this.$root.schema_obj
+				kmrnr: this.$root.activekmr,
+				sid:this.$root.schema_obj[key].sid,
+				obj: this.$root.schema_obj[key]
 		}
 		fetch(this.$root.url+'/setschedule', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})
 			  .then(response => response.json())
@@ -77,6 +83,7 @@ const Popup = {
 					if (json['result']=="done") {
 						this.$root.old_schema_obj = null
 						this.$root.showpopup = false
+						this.$root.schema_obj[key].sid = json['sid']
 						this.$root.inerror = false
 					}
 					else{
@@ -94,8 +101,26 @@ const Popup = {
 		//	if (this.$root.schema_obj[t1].dag == dag){
 		//	}
 		//}
-		this.$root.schema_obj.splice(key,1)
-		this.opslaan_tijd()
+		bd = {
+			kmrnr: this.$root.activekmr,
+			sid:this.$root.schema_obj[key].sid,
+			obj: null
+		}
+		fetch(this.$root.url+'/setschedule', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})
+			.then(response => response.json())
+			.then(json => {
+					if (json['result']=="done") {
+						this.$root.old_schema_obj = null
+						this.$root.showpopup = false
+						this.$root.inerror = false
+						this.$root.schema_obj.splice(key,1)
+					}
+					else{
+						//add class error?
+						this.$root.inerror = true
+					}
+			})
+			.catch(this.$root.inerror = true);
 		
 	},
 	van_tijd(){

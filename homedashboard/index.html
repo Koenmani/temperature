@@ -86,7 +86,6 @@
 <script src="programs.js"></script>
 <script src="navigation.js"></script>
 <script type="module">
-//url: "http://192.168.0.158:5000" //local
 var rpi = "http://192.168.0.125"
 const VM = new Vue({
   el: '#tabs',
@@ -121,6 +120,7 @@ const VM = new Vue({
     old_temp_obj:0,
     ip: rpi,
 	url: rpi+":6543", //rpi
+	//url: "http://192.168.0.153:5000", //local
     watering_status: false,
     water_obj: [],
     zone_obj: [],

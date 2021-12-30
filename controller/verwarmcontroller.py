@@ -26,31 +26,55 @@ def setschedule():
 			content = request.json
 			#print(content)
 			kmrnr=content['kmrnr']
+			sid=content['sid']
 			obj=content['obj']
 			#delete current schedule and replace insert all new values
-			print("Found object: "+str(len(obj))+" for kamer nr: "+str(kmrnr))
+			
 			if connectdb():
-				cur.execute( "DELETE FROM verwarmschema.thermostaat_schedule WHERE fk_tid='%s'" % (kmrnr,) )
-				conn.commit()
-				for object in obj:
-					print("Found object dag: "+str(object['dag']))
-					print("Found object temp: "+str(object['temp']))
-					print("Found object tijd: "+str(object['tijd']))
-					try:
-						cur.execute( "INSERT INTO verwarmschema.thermostaat_schedule (dag,tijd,temp, fk_tid) VALUES ('%s','%s','%s','%s')" % (object['dag'],object['tijd'],object['temp'],kmrnr))
+				try:
+					if obj:
+						print("Found object: "+str(len(obj))+" for kamer nr: "+str(kmrnr)+ " for sid: "+str(sid))
+						print("Found object dag: "+str(obj['dag']))
+						print("Found object temp: "+str(obj['temp']))
+						print("Found object tijd: "+str(obj['tijd']))
+						if str(sid) == 'new':
+							cur.execute( "INSERT INTO verwarmschema.thermostaat_schedule (dag,tijd,temp, fk_tid) VALUES ('%s','%s','%s','%s') RETURNING sid" % (obj['dag'],obj['tijd'],obj['temp'],kmrnr))
+							conn.commit()
+							sid = cur.fetchone()[0]
+						else:
+							cur.execute( "UPDATE verwarmschema.thermostaat_schedule SET dag='%s',temp='%s',tijd='%s' WHERE sid='%s'" % (obj['dag'],obj['temp'],obj['tijd'],sid))
+							conn.commit()
+					else:
+						print("We need to delete it for sid: "+str(sid))
+						cur.execute( "DELETE FROM verwarmschema.thermostaat_schedule WHERE fk_tid='%s' AND sid='%s'" % (kmrnr,sid) )
 						conn.commit()
-					except Exception as err:
+				except Exception as err:
 						# pass exception to function
 						#print_psycopg2_exception(err)
 						# rollback the previous transaction before starting another
 						conn.close()
 						print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+						return jsonify({'result':'fail'})
+				#
+				#for object in obj:
+				#	print("Found object dag: "+str(object['dag']))
+				#	print("Found object temp: "+str(object['temp']))
+				#	print("Found object tijd: "+str(object['tijd']))
+				#	try:
+						#cur.execute( "INSERT INTO verwarmschema.thermostaat_schedule (dag,tijd,temp, fk_tid) VALUES ('%s','%s','%s','%s')" % (object['dag'],object['tijd'],object['temp'],kmrnr))
+						#conn.commit()
+				#	except Exception as err:
+						# pass exception to function
+						#print_psycopg2_exception(err)
+						# rollback the previous transaction before starting another
+				#		conn.close()
+				#		print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
 			else:
 				print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
 		except:
 			traceback.print_exc()
 		
-		return jsonify({'result':'done'})
+		return jsonify({'result':'done','sid':sid})
 
 @app.route("/settemp", methods=['POST'])
 def settemp():
@@ -165,7 +189,7 @@ def verwarmingstatus():
 	global conn,cur
 	if connectdb():
 		try:
-			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
+			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude,r.lowbattery FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
 			conn.commit()
 			if cur.rowcount != 0:
 				x = {"kamer" : [], "tijd" :[]}
@@ -173,7 +197,8 @@ def verwarmingstatus():
 				nu = datetime.today()
 				nu = nu.replace(tzinfo=tz.gettz('UTC'))
 				nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
-				
+				lowbat = False
+
 				weekdag = nu.weekday() + 1
 				vorigedag = weekdag - 1
 				volgendedag = weekdag + 1
@@ -196,6 +221,9 @@ def verwarmingstatus():
 							insync = False
 						else:
 							insync = True
+						
+						if result[12] == True:
+							lowbat = True
 							
 						smartheat = result[9]
 						
@@ -286,15 +314,19 @@ def verwarmingstatus():
 							"insync": insync,
 							"offset": offset,
 							"smartheat": smartheat,
+							"lowbattery": lowbat,
 							"radiator":[
 							{
 								"mac": result[4],
-								"open_close": result[6]
+								"open_close": result[6],
+								"lowbattery": result[12]
 							}]
 						}
 						tid = int(result[0])
 					else:
-						y['radiator'].append({"mac": result[4],"open_close": result[6]})
+						y['radiator'].append({"mac": result[4],"open_close": result[6], "lowbattery": result[12]})
+						if result[12] == True:
+							lowbat = True
 					
 				#add last one
 				if y:
@@ -322,7 +354,7 @@ def kamerschema():
 	if connectdb():
 		try:
 			#cur.execute( "SELECT dag,tijd,temp FROM verwarmschema.thermostaat_schedule where fk_tid=%s" % (kamernr,))
-			cur.execute( "SELECT dag,tijd,temp FROM verwarmschema.thermostaat_schedule where fk_tid=%s order by dag,TO_TIMESTAMP(tijd,'HH24:MI')" % (kamernr,))
+			cur.execute( "SELECT dag,tijd,temp,sid FROM verwarmschema.thermostaat_schedule where fk_tid=%s order by dag,TO_TIMESTAMP(tijd,'HH24:MI')" % (kamernr,))
 			conn.commit()
 			print("%s We got %s rows from db" % (cur_time(),cur.rowcount), file=sys.stderr)
 			if cur.rowcount != 0:
@@ -333,11 +365,13 @@ def kamerschema():
 					y = {
 						"dag": result[0],
 						"tijd": result[1],
-						"temp": result[2]
+						"temp": result[2],
+						"sid" : result[3]
 					}
 					x.append(y)
 			else:
 				x = [{
+						"sid": "null",
 						"dag": "null",
 						"tijd": "null",
 						"temp": "null"
