@@ -68,8 +68,8 @@ services:
       - VERWARMING_ONOFF_RPI=http://192.168.0.125:8000/
       - VERWARMING_DB_IP=192.168.0.125
       - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=postgres
-      - VERWARMING_DBPASS=docker
+      - VERWARMING_DBUSER=
+      - VERWARMING_DBPASS=
     build: "./read_nefit_data"
     restart: unless-stopped
     networks:
