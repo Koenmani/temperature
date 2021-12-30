@@ -141,13 +141,14 @@ try:
 			r = requests.get(rpi_temp+':6543/verwarmingstatus', timeout=5)
 			#r = requests.get('http://192.168.0.158:5000/verwarmingstatus')
 			if r:
-				print("%s Got a response" % (cur_time(),), file=sys.stderr)
+				#print("%s Got a response" % (cur_time(),), file=sys.stderr)
 				response = r.json()
-				print("%s Contains %s rooms" % (cur_time(),len(response['kamer'])), file=sys.stderr)
+				#print("%s Contains %s rooms" % (cur_time(),len(response['kamer'])), file=sys.stderr)
 				#we have a valid response, loop through all rooms and determine which radiators mac needs to be opened
 				radiator_open = []
 				radiator_close = []
-				manualmode = []
+				exclude = []
+				outofsync = []
 				t1 = 0
 				tempdiff = 0 # this value keeps track of the highest difference in temperature. We need this value later on
 				try:
@@ -167,24 +168,26 @@ try:
 						if response['kamer'][t1]['handmatig']: #check if the time has passed for overwrite
 							a=0	
 						
-						if response['kamer'][t1]['handmatig']: #temperature is set manually for this room, overwriting schedule
+						if response['kamer'][t1]['exclude'] == True : #temperature is set manually on the radiator head
 							#send the temp to the radiator heads
 							#put to manual mode
-							print("%s Room %s in manual mode" % (cur_time(),t1), file=sys.stderr)
+							print("%s Room %s in full manual mode. Excluding further instructions" % (cur_time(),t1), file=sys.stderr)
 							t2 = 0
 							while t2 < len(response['kamer'][t1]['radiator']):
 								if response['kamer'][t1]['radiator'][t2]['mac']:
-									manualmode.append(response['kamer'][t1]['radiator'][t2]['mac'])
+									exclude.append(response['kamer'][t1]['radiator'][t2]['mac'])
 									t4 = 0
 									while t4 < len(radiator_list): # look up the right object in the list
 										if radiator_list[t4].address == response['kamer'][t1]['radiator'][t2]['mac']:
-											h.set_manual_mode()
-											h.set_temperature(ingesteld) 
+											if radiator_list[t4].exclude == False:
+												radiator_list[t4].exclude = True
+												radiator_list[t4].set_manual_mode()
+												radiator_list[t4].set_temperature(ingesteld) 
 											break
 										t4 = t4 + 1
 								t2 = t2 + 1
 							
-						else: #automated radiator control
+						else: #automated radiator control or via console at least
 							print("%s Room %s in automated mode" % (cur_time(),t1), file=sys.stderr)
 							if insync:
 								#check if there is a closing offset defined, else use the general set one
@@ -277,14 +280,14 @@ try:
 									while t2 < len(response['kamer'][t1]['radiator']):
 										if response['kamer'][t1]['radiator'][t2]['mac']:
 											if "@" in response['kamer'][t1]['radiator'][t2]['mac']:
-												manualmode.append(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0])
+												outofsync.append(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0])
 												tempadress = response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0]
 											else:
-												manualmode.append(response['kamer'][t1]['radiator'][t2]['mac'])
+												outofsync.append(response['kamer'][t1]['radiator'][t2]['mac'])
 												tempadress = response['kamer'][t1]['radiator'][t2]['mac']
 											
 											if (isknownhead(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0]) != True):
-												#radiator does not exist yet in the list. Add it and put to manual mode
+												#radiator does not exist yet in the list. Add it and put to error mode
 												print("%s Found new radiator head, initializing" % (cur_time(),), file=sys.stderr)
 												h = EQ3Thermostat(response['kamer'][t1]['radiator'][t2]['mac'])
 												radiator_list.append(h)
@@ -311,7 +314,8 @@ try:
 						t1 = t1 + 1
 					print("%s Number of radiators to open %s" % (cur_time(),len(radiator_open)), file=sys.stderr)
 					print("%s Number of radiators to close %s" % (cur_time(),len(radiator_close)), file=sys.stderr)
-					print("%s Number of radiators in manual mode %s" % (cur_time(),len(manualmode)), file=sys.stderr)
+					print("%s Number of radiators to exclude %s" % (cur_time(),len(exclude)), file=sys.stderr)
+					print("%s Number of radiators out of sync %s" % (cur_time(),len(outofsync)), file=sys.stderr)
 				except:
 					print("%s Object integrity error" % (cur_time(),), file=sys.stderr)
 					traceback.print_exc()
@@ -349,8 +353,10 @@ try:
 									radiator_list[t4].force_command = 0
 								else:
 									print("%s Failed for %s, retry next time" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
-						elif radiator_list[t4].address in manualmode:
-							print("%s Thermostat in manual mode, no touching %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
+						elif radiator_list[t4].address in exclude:
+							a=0 #dont know yet
+						elif radiator_list[t4].address in outofsync:
+							print("%s Thermostat out of sync, no touching %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
 
 						else:
 							raise Exception('Unknown radiator head('+radiator_list[t4].address+'), something is terribly wrong')

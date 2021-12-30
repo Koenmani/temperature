@@ -165,7 +165,7 @@ def verwarmingstatus():
 	global conn,cur
 	if connectdb():
 		try:
-			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
+			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
 			conn.commit()
 			if cur.rowcount != 0:
 				x = {"kamer" : [], "tijd" :[]}
@@ -278,6 +278,7 @@ def verwarmingstatus():
 							"naam": result[1],
 							"ingesteld": temp,
 							"handmatig": handmatig,
+							"exclude": result[11],
 							"volgend_temp": temp2,
 							"volgend_tijd": dag2,
 							"laatste_tijd": dag3,
@@ -358,7 +359,7 @@ def getsensors():
 	#mogelijk voor input voor LYWSD03MMC.py
 	a=0
 
-@app.route("/setmanual")
+@app.route("/setmanual", methods=['GET', 'POST'])
 def setmanual():
 	global conn,cur
 	#zet de status van een radiator naar handmatig (on) of automatisch (off) met de juiste temp en switch to automatic (time)
@@ -366,18 +367,12 @@ def setmanual():
 	# POST /setmanual?tid=xx&manual=off
 	if request.method == 'POST':
 		print("%s Parsing requested values from POST" % (cur_time(),), file=sys.stderr)
-		manual=request.form['manual']
-		tid = request.form['tid']
-		try:
-			temp=request.form['temp']
-		except:
-			temp=None
-			#this is fine, probably the manual mode has been release by user
+		content = request.json
+		manual=content['manual']
+		tid = content['tid']
+		temp=content.get('temp') #this is fine if empty, probably the manual mode has been release by user
 		print("%s Got the manual(%s), tid(%s) and the temp(%s)" % (cur_time(),manual,tid,temp), file=sys.stderr)	
-		try:
-			tijd=request.form['tijd']
-		except:
-			tijd=None
+		tijd=content.get('tijd')
 		parsed = True
 	elif request.method == 'GET':
 		print("%s Parsing requested values from GET" % (cur_time(),), file=sys.stderr)
@@ -421,17 +416,21 @@ def setmanual():
 			v = 1
 		else:
 			v = 0
-	
+		
 		
 		if connectdb():
 			try:
 				print("%s Updating db " % (cur_time(),), file=sys.stderr)
-				cur.execute( "UPDATE verwarmschema.thermostaat SET handmatig='%s', ingestelde_temp='%s', handmatig_tijd='%s' WHERE tid='%s'" % (v,temp,switch_time,tid) )
+				if v == 0: #need to shut it down
+					cur.execute( "UPDATE verwarmschema.thermostaat SET handmatig=0, ingestelde_temp=null, handmatig_tijd=null WHERE tid='%s'" % (tid,) )
+				else:
+					cur.execute( "UPDATE verwarmschema.thermostaat SET handmatig='%s', ingestelde_temp='%s', handmatig_tijd='%s' WHERE tid='%s'" % (v,temp,switch_time,tid) )
 				conn.commit()
 				return jsonify('done')
 			except Exception as err:
 				conn.close()
 				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+				traceback.print_exc()
 				return jsonify('fail')				
 		else:
 			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
@@ -454,8 +453,9 @@ def setradiatorbattery():
 				return jsonify('done')
 			except Exception as err:
 				conn.close()
-				return jsonify('fail')
+				traceback.print_exc() 
 				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+				return jsonify('fail')				
 		else:
 			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
 			return jsonify('fail')

@@ -235,7 +235,8 @@ luchtvocht int NULL,
 batterij_level int NULL,
 handmatig int4 NOT NULL DEFAULT 0,
 smartheat bool NOT NULL DEFAULT false,
-Handmatig_tijd timestamp NULL;
+Handmatig_tijd timestamp NULL,
+“exclude” bool NOT NULL DEFAULT False,
 CONSTRAINT thermostaat_pk PRIMARY KEY (tid)
 );
 CREATE TABLE verwarmschema.radiator (

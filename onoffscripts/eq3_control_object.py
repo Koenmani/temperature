@@ -18,6 +18,7 @@ class EQ3Thermostat(object):
             self.address = address
             self.remoteaddress = None
 		
+        self.exclude = False
         self.locked = False
         self.temperature = -1
         self.failedtimes = 0
@@ -45,9 +46,9 @@ class EQ3Thermostat(object):
             BITMASK_BATTERY = 0x80
             
             if batt & BITMASK_BATTERY:
-            	self.lowbattery = True
+                self.lowbattery = True
             else:
-            	self.lowbattery = False
+                self.lowbattery = False
             
             try:
                 subprocess.Popen.kill(p)
@@ -67,7 +68,7 @@ class EQ3Thermostat(object):
             #except Exception as e:
             #    print("Getting temperature of {} failed {}".format(self.address, e))
         else:
-        	return False
+            return False
 
     def activate_boostmode(self):
         """Boostmode fully opens the thermostat for 300sec."""
