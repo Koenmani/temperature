@@ -2,7 +2,8 @@ const Room_cfg = {
   props: ['item', 'schema'],
   data() {
 	  return{
-		  isloaded:false
+		  isloaded:false,
+		  manual: false
 	  }
   },
   components: {
@@ -10,25 +11,29 @@ const Room_cfg = {
 	  	 togglebtn: ToggleButton
   },
   computed: {
-  		
+  	nameString(){
+      return this.item.tmp_hand
+    }	
   },
   methods: {
-	toggle_manual(value) {
-        console.log(value);
-        if (value == true){
+	toggle_manual() {
+        console.log(this.item.tmp_hand);
+        console.log(this.item.ingesteld);
+        if (this.item.handmatig == true){ //enable manual control
 			// POST /setmanual?tid=xxxxxxxx&manual=on&temp=20.5&time=
 			bd = {
 				tid: this.item.tid,
 				manual: "on",
-				temp: this.item.ingesteld,
-				time: this.item.volgend_tijd
+				temp: this.item.tmp_hand,
+				tijd: this.item.volgend_tijd
 			}
 			
 			fetch(this.$root.url+'/setmanual', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})
 			  .then(response => response.json())
 			  .then(json => {
-					if (json['result']=="done") {
+					if (json=="done") {
 						console.log("yes, it works")
+						this.item.ingesteld = this.item.tmp_hand
 					}
 					else{
 						//add class error?
@@ -37,7 +42,7 @@ const Room_cfg = {
 			  })
 			  .catch(this.$root.inerror = true);
 		}
-		else if (value == false){
+		else if (this.item.handmatig == false){ //shut down manual control
 			// POST /setmanual?tid=xxxxxxxx&manual=on&temp=20.5&time=
 			bd = {
 				tid: this.item.tid,
@@ -47,8 +52,9 @@ const Room_cfg = {
 			fetch(this.$root.url+'/setmanual', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})
 			  .then(response => response.json())
 			  .then(json => {
-					if (json['result']=="done") {
+					if (json=="done") {
 						console.log("yes, it works")
+						//this.manual = false
 					}
 					else{
 						//add class error?
@@ -58,64 +64,43 @@ const Room_cfg = {
 			  .catch(this.$root.inerror = true);
 		}
     },
-	processdag(dag){
-		result = []
-		t1 = 0
-		vorigetemp = 0
-		vorigetijd = 0
-		l = 0
-		w = 0
-		len = this.schema.length		
-		vorigetemp = parseFloat(this.schema[len-1].temp)
-		for (t1=0;t1<len;t1++){
-			if (this.schema[t1].dag == dag){
-				//calculate integer from the timing and divide by 
-				if (parseInt(this.schema[t1].tijd.split(":")[1]) == 30){
-					decimals = 0,5
-				}
-				else{
-					decimals = 0
-				}
-				l = vorigetijd
-				w = (parseInt(this.schema[t1].tijd.split(":")[0])+decimals)*(100/24) - l
-				if (vorigetemp <= 16){
-					c = "#FFF"
-				}
-				else if (vorigetemp <= 20){
-					c = "#228B22"
-				}
-				else if (vorigetemp > 20){
-					c = "#FF8C00"
-				}
-				else{
-					c = "#FFF"
-				}
-				result.push({'l':l, 'c': c, 'id': "dag_"+dag+"_tijd_"+t1, 'w':w, 'temp':this.schema[t1].temp})
-			}
-			vorigetemp = parseFloat(this.schema[t1].temp)
-			l = l + w
-			vorigetijd = l
-		}
-		return result
-	},	
-	balkenschema: function(dag) {
-		undef = undefined
-		gotit = false
-		if (this.schema!=undef){
-			return this.processdag(dag)
-		}
-		else{
-			fetch(this.$root.url+'/kamerschema?nr='+this.item.tid)
+	toggle_vac() {
+        console.log(this.item.exclude);
+		tmp_exclude = this.item.exclude
+			
+		fetch(this.$root.url+'/togglevac?room='+this.item.tid, {method: 'GET',headers: {'Content-Type': 'application/json;charset=utf-8'}})
 			.then(response => response.json())
 			.then(json => {
-				this.schema = json
-				len = this.schema.length
-				return this.processdag(dag)
+				if (json=="done") {
+					console.log("yes, it works")
+					if (tmp_exclude == true){ 
+						this.item.exclude = false
+					}
+					else{
+						this.item.exclude = true
+					}
+				}
+				else{
+					//add class error?
+					console.log("fail")
+				}
 			})
-		}
+			.catch(this.$root.inerror = true);
     },
 	reset_kamer(){
 		this.$parent.activekmr_cfg = 0
+	},
+	StepUp(){
+		this.item.tmp_hand = this.item.tmp_hand + 0.5
+		if (this.item.tmp_hand > 30){
+			this.item.tmp_hand = 30
+		}
+	},
+	StepDown(){
+		this.item.tmp_hand = this.item.tmp_hand - 0.5
+		if (this.item.tmp_hand < 5){
+			this.item.tmp_hand = 5
+		}
 	}
   },
   template: `<div class=\"enkele_kamer\">
@@ -129,8 +114,28 @@ const Room_cfg = {
 					<div class=\"kamer_next\">Volgende schakelpunt: {{ item.volgend_tijd }} naar {{ item.volgend_temp }}&#176; </div>
 				</div>
 				
-				<div class=\"kamer_curtemp\"><div>Bedien handmatig: </div><togglebtn v-on:change="toggle_manual"></togglebtn>&#176;</div><div class=\"kamer_curtemp\">Tot volgende schakelpunt </div>
-				<div class=\"\">Vakantie stand aan/uit </div>
+				<div class=\"kamer_curtemp\">
+				<div>Bedien handmatig: 
+					<label class="switch">
+						<input type="checkbox" v-model="item.handmatig" v-on:change=\"toggle_manual\">
+						<span class="slider round"></span>
+					</label>
+				
+					<div class="number-input">
+						<button onclick=\"this.parentNode.querySelector('input[type=number]').stepDown()\" @click=\"StepDown\" ></button>
+						<input type=\"number\" min=\"5\" max=\"30\" :value=\"nameString\" v-model="item.tmp_hand" step=\"0.5\"></input>&#176;
+						<button onclick=\"this.parentNode.querySelector('input[type=number]').stepUp()\" @click=\"StepUp\" class=\"plus\"></button>
+					</div>
+				
+					<div class=\"kamer_curtemp\">Tot volgende schakelpunt </div>
+				</div>
+				<br/>
+				<div class=\"\">Vakantie stand aan/uit 
+					<label class="switch">
+						<input type="checkbox" v-model="item.exclude" v-on:change=\"toggle_vac\">
+						<span class="slider round"></span>
+					</label>
+				</div>
 				<div class=\"\">Kamer offset </div>
 				
 				

@@ -6,6 +6,7 @@ from datetime import date
 from dateutil import tz
 import requests
 from eq3_control_object import EQ3Thermostat
+from daikin_control_object import Airco
 import traceback
 import os
 
@@ -59,7 +60,37 @@ def isknownhead(mac):
 			return True		
 		t1 = t1 + 1
 	return False
-	
+
+def isknownairco(ip):
+	global airco_list
+	t1 = 0
+	while t1 < len(airco_list):
+		if airco_list[t1].host == ip:
+			return True		
+		t1 = t1 + 1
+	return False
+
+def load_ot():
+	try:
+		r = requests.get('http://'+airco_ot_ip+'/aircon/get_sensor_info', timeout=5)
+		returnobject = r.text.split(",")
+		if returnobject[0].split("=")[1] == "OK":
+			for o in returnobject:
+				if o.split("=")[0] == 'otemp':
+					return float(o.split("=")[1])
+		else:
+			return 0
+		
+	except:
+		return 0
+
+def highest_airco_temp(ip,ro):
+	t = None
+	for room in ro:
+		if room['airco'][0]['ip'] == ip:
+			if room['ingesteld'] > t:
+				t = room['ingesteld']
+	return t
 
 #########
 ## Todo:
@@ -76,10 +107,12 @@ time.sleep(5) #wait for other modules to be available
 forecast = None #This is used to load the weather forecast, to determine if we should heat up if smartheating = true
 verwarming = False
 radiator_list = []
+airco_list = []
 updatecounter = 0 #this is a counter which is used to keep track of when to call the radiator head update, so low battery status is checked
 first_load = True
 heatingcounter = 0 #Sometimes connection is lost with CV, need to at least send a signal every 15min
 smartheatingcounter = 0 #we dont want to load every minute. twice a day is enough = 720 minutes/counters
+outside_temp = 0 #Keep track of the outside temperature, initialize with 0, updates after 15min
 
 ###configurable variables
 if os.getenv("VERWARMING_ONOFF_RPI") is not None:
@@ -112,6 +145,10 @@ if os.getenv("VERWARMING_ONOFF_API") is not None:
 	apikey = os.getenv("VERWARMING_ONOFF_API")
 else:
 	apikey = "b3e2781468f747d3a2781468f7d7d30b"
+if os.getenv("AIRCO_OUTSIDE_TEMP_IP") is not None:
+	airco_ot_ip = os.getenv("AIRCO_OUTSIDE_TEMP_IP")
+else:
+	airco_ot_ip = "192.168.0.137"
 
 try:
 	print("%s Starting up for the first time" % (cur_time(),), file=sys.stderr)
@@ -230,27 +267,114 @@ try:
 								
 								if (ingesteld - co) > huidig: #if there is still hot water in the pipes, we should take closing offset into account
 									t2 = 0
-									diff = ingesteld - huidig
-									if tempdiff < diff: #keep track of highest difference in temperature
-										tempdiff = diff
-									if len(response['kamer'][t1]['radiator']) > 0:
+									useAC = False									
+									if outside_temp < -5: # if outside temp is lower than -5, no use in starting airco
+										useAC = False
+									else:
+										if len(response['kamer'][t1]['airco']) > 0: #check if this room has an airco
+											#check if we already know this airco
+											if isknownairco(response['kamer'][t1]['airco'][0]['ip']) != True:
+												#add to airco list and initialize
+												print("%s New Airco unit found: %s Initializing" % (cur_time(),response['kamer'][t1]['airco'][0]['ip']), file=sys.stderr)
+												a = Airco(response['kamer'][t1]['airco'][0]['ip'])
+												a.update()
+												a.last_change = response['kamer'][t1]['airco'][0]['last_change']
+												airco_list.append(a)
+											
+											t4 = 0
+											while t4 < len(airco_list): # look up the right object in the list
+												if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
+													if airco_list[t4].power: #if it is already open
+														useAC == True
+														# if there is a set temp change, we need to send new temp instructions
+														# and reset last_change timer
+
+														#find highest temp for the rooms for this airco
+														t = highest_airco_temp(response['kamer'][t1]['airco'][0]['ip'],response['kamer'])
+														if (airco_list[t4].temp) != t: 
+															#apparently temp of one of the rooms has changed. We need to adjust and reset last_change time
+															#and re-send new instructions to the unit
+															nu = datetime.now()
+															nu = nu.replace(tzinfo=tz.gettz('UTC'))
+															nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
+															airco_list[t4].last_change = nu
+															airco_list[t4].temp = t
+														else:
+															last_change = response['kamer'][t1]['airco'][0]['last_change']
+															nu = datetime.now()
+															nu = nu.replace(tzinfo=tz.gettz('UTC'))
+															nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
+															last_change_delta = last_change + timedelta(minutes=60)
+															if last_change_delta > nu: # if it is very long (>1 hr) and temp is not met... # useAC = False, but leave it on
+																print("%s Room %s is heating with airco. But for more than 1 hr already, start using radiator" % (cur_time(),t1), file=sys.stderr)
+																useAC = False #meaning also radiator will start heating up
+																#but we don't shut down the airco (yet), until temp is reached
+															else:
+																print("%s Room %s is heating with airco. Excluding further instructions for now" % (cur_time(),t1), file=sys.stderr)
+													else: #if it isn't open, start with airco
+														useAC = True
+														print("%s Room %s starts heating with airco. Excluding further instructions for now" % (cur_time(),t1), file=sys.stderr)
+												t4 = t4 + 1
+
+									if useAC == True: #airco is running and therefor all radiators in this room need to be excluded from further instructions
+										t4 = 0
+										while t4 < len(airco_list): # look up the right object in the list
+											if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
+												airco_list[t4].activate_settings()
+												break;
+											t4 = t4 + 1
+										if t4 == len(airco_list):
+											print("%s ERROR; Couldnt start airco" % (cur_time(),), file=sys.stderr)
+										t2 = 0
 										while t2 < len(response['kamer'][t1]['radiator']):
-											#print("%s Opening radiotor for room: %s with mac-adres: %s" % (cur_time(),response['kamer'][t1]['naam'],response['kamer'][t1]['radiator'][t2]['mac']), file=sys.stderr)
 											if response['kamer'][t1]['radiator'][t2]['mac']:
-												if "@" in response['kamer'][t1]['radiator'][t2]['mac']:
-													radiator_open.append(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0])
-												else:
-													radiator_open.append(response['kamer'][t1]['radiator'][t2]['mac'])
-												
-												if (isknownhead(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0]) != True):
-													print("%s Found new radiator head, initializing" % (cur_time(),), file=sys.stderr)
-													h = EQ3Thermostat(response['kamer'][t1]['radiator'][t2]['mac'])
-													radiator_list.append(h)
-													h.set_manual_mode()
-													time.sleep(4) # wait for stabilization
-													#h.lock_thermostat()
+												exclude.append(response['kamer'][t1]['radiator'][t2]['mac'])
+												t4 = 0
+												while t4 < len(radiator_list): # look up the right object in the list
+													if radiator_list[t4].address == response['kamer'][t1]['radiator'][t2]['mac']:
+														if radiator_list[t4].exclude == False:
+															radiator_list[t4].exclude = True
+															radiator_list[t4].set_manual_mode()
+															radiator_list[t4].set_temperature(ingesteld) 
+														break
+													t4 = t4 + 1
 											t2 = t2 + 1
-								else:
+									
+									else: # AC is not used, lets take a look at the radiators
+										diff = ingesteld - huidig
+										if tempdiff < diff: #keep track of highest difference in temperature for CV heating
+											tempdiff = diff
+										if len(response['kamer'][t1]['radiator']) > 0:
+											while t2 < len(response['kamer'][t1]['radiator']):
+												#print("%s Opening radiotor for room: %s with mac-adres: %s" % (cur_time(),response['kamer'][t1]['naam'],response['kamer'][t1]['radiator'][t2]['mac']), file=sys.stderr)
+												if response['kamer'][t1]['radiator'][t2]['mac']:
+													if "@" in response['kamer'][t1]['radiator'][t2]['mac']:
+														radiator_open.append(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0])
+													else:
+														radiator_open.append(response['kamer'][t1]['radiator'][t2]['mac'])
+													
+													if (isknownhead(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0]) != True):
+														print("%s Found new radiator head, initializing" % (cur_time(),), file=sys.stderr)
+														h = EQ3Thermostat(response['kamer'][t1]['radiator'][t2]['mac'])
+														radiator_list.append(h)
+														h.set_manual_mode()
+														time.sleep(4) # wait for stabilization
+														#h.lock_thermostat()
+												t2 = t2 + 1
+								else: # temp has been met (taking offset into account), shut down all radiators. and airco's?
+									# If room has an airco
+									# and if airco was running
+									if len(response['kamer'][t1]['airco']) > 0: #check if this room has an airco
+										t4 = 0
+										while t4 < len(airco_list): # look up the right object in the list
+											if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
+												airco_list[t4].power = False
+												airco_list[t4].activate_settings()
+												break;
+											t4 = t4 + 1
+										if t4 == len(airco_list):
+											print("%s ERROR; Couldnt shut down airco" % (cur_time(),), file=sys.stderr)
+									
 									t2 = 0
 									if len(response['kamer'][t1]['radiator']) > 0:
 										while t2 < len(response['kamer'][t1]['radiator']):
@@ -435,6 +559,8 @@ try:
 			print("%s Waiting for one minute for next batch" % (cur_time(),), file=sys.stderr)
 			time.sleep(60)
 			updatecounter = updatecounter + 1
+			if updatecounter > 15: #call update every 15min to update outside temp
+				outside_temp = load_ot()
 			if updatecounter > 60: #call update every hour to check for battery status
 				t4 = 0
 				while t4 < len(radiator_list):

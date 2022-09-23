@@ -49,6 +49,7 @@ services:
       - VERWARMING_ONOFF_LON=
       - VERWARMING_ONOFF_LAT=
       - VERWARMING_ONOFF_API=
+      - AIRCO_OUTSIDE_TEMP_IP=
     build: "./onoffscripts"
     restart: unless-stopped
     privileged: true

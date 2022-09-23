@@ -189,7 +189,7 @@ def verwarmingstatus():
 	global conn,cur
 	if connectdb():
 		try:
-			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude,r.lowbattery FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
+			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude,r.lowbattery,t.fk_aid FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
 			conn.commit()
 			if cur.rowcount != 0:
 				x = {"kamer" : [], "tijd" :[]}
@@ -315,18 +315,26 @@ def verwarmingstatus():
 							"offset": offset,
 							"smartheat": smartheat,
 							"lowbattery": lowbat,
-							"radiator":[
-							{
-								"mac": result[4],
-								"open_close": result[6],
-								"lowbattery": result[12]
-							}]
+							"radiator":[],
+							"airco":[]
 						}
+						cur.execute( "select r.mac, r.open_close, r.lowbattery from verwarmschema.radiator r where fk_tid=%s" % (result[0],))
+						conn.commit()
+						res = cur.fetchall()
+						for r in res:
+							y['radiator'].append({"mac": r[0],"open_close": r[1], "lowbattery": r[2]})
+							if r[2] == True:
+								lowbat = True
+						if result[13]:
+							cur.execute( "select a.ip, a.open_close, a.last_change from verwarmschema.airco a where aid=%s" % (result[13],))
+							conn.commit()
+							res = cur.fetchall()
+							for r in res:
+								y['airco'].append({"ip": r[0],"open_close": r[1], "last_change": r[2]})
+							
 						tid = int(result[0])
 					else:
-						y['radiator'].append({"mac": result[4],"open_close": result[6], "lowbattery": result[12]})
-						if result[12] == True:
-							lowbat = True
+						pass
 					
 				#add last one
 				if y:
@@ -392,6 +400,40 @@ def getsensors():
 	#resulteerd een array met sensor mac adressen en nrs
 	#mogelijk voor input voor LYWSD03MMC.py
 	a=0
+
+@app.route("/togglevac", methods=['GET']) 
+def togglevac():
+	#toggle vacation modus for a room
+	#/togglevac?room=x
+	if request.method == 'GET':
+		print("%s Parsing requested values from POST" % (cur_time(),), file=sys.stderr)
+		#content = request.json
+		kmr=request.args['room']		
+		vac=False
+		if connectdb():
+			try:
+				print("%s Updating db " % (cur_time(),), file=sys.stderr)
+				cur.execute( "SELECT exclude from verwarmschema.thermostaat WHERE tid='%s'" % (kmr,) )
+				conn.commit()
+				if cur.rowcount != 0:
+					r = cur.fetchone()
+					if r[0] == False:
+						vac=True
+					else:
+						vac=False
+					cur.execute( "UPDATE verwarmschema.thermostaat SET exclude='%s' WHERE tid='%s'" % (vac,kmr) )
+					conn.commit()
+					return jsonify('done')
+				else:
+					return jsonify('fail')
+			except Exception as err:
+				conn.close()
+				print("%s Failed to update database" % (cur_time(),), file=sys.stderr)
+				traceback.print_exc()
+				return jsonify('fail')				
+		else:
+			print("%s Could not connect to database" % (cur_time(),), file=sys.stderr)
+			return jsonify('fail')
 
 @app.route("/setmanual", methods=['GET', 'POST'])
 def setmanual():
