@@ -72,10 +72,46 @@ const Popup = {
 		//	obj: this.$root.schema_obj
 		//}
 		key = parseInt(this.tijd.split("_")[3])
+		len = this.$root.schema_obj.length
+		if (key == 0){
+			k = len-1
+		}
+		else{
+			k=key-1
+		}
+		bd = {
+			kmrnr: this.$root.activekmr,
+			sid:this.$root.schema_obj[k].sid,
+			obj: this.$root.schema_obj[k]
+		}
+		fetch(this.$root.url+'/setschedule', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})
+			  .then(response => response.json())
+			  .then(json => {
+					if (json['result']=="done") {
+						this.$root.old_schema_obj = null
+						this.$root.showpopup = false
+						this.$root.schema_obj[k].sid = json['sid']
+						this.$root.inerror = false
+					}
+					else{
+						//add class error?
+						this.$root.inerror = true
+					}
+			  })
+			  .catch(this.$root.inerror = true);
+		
+		if (this.$root.schema_obj[k].dag != this.$root.schema_obj[key].dag){
+			var tmpsid = this.$root.schema_obj[k].sid
+			var tmpobj = this.$root.schema_obj[k]
+		}
+		else{
+			var tmpsid = this.$root.schema_obj[key].sid
+			var tmpobj = this.$root.schema_obj[key]
+		}
 		bd = {
 				kmrnr: this.$root.activekmr,
-				sid:this.$root.schema_obj[key].sid,
-				obj: this.$root.schema_obj[key]
+				sid:tmpsid,
+				obj: tmpobj
 		}
 		fetch(this.$root.url+'/setschedule', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})
 			  .then(response => response.json())
@@ -101,9 +137,22 @@ const Popup = {
 		//	if (this.$root.schema_obj[t1].dag == dag){
 		//	}
 		//}
+		len = this.$root.schema_obj.length
+		if (key == 0){
+			k = len-1
+		}
+		else{
+			k=key-1
+		}
+		if (this.$root.schema_obj[k].dag != this.$root.schema_obj[key].dag){
+			var tmpsid = this.$root.schema_obj[k].sid
+		}
+		else{
+			var tmpsid = this.$root.schema_obj[key].sid
+		}
 		bd = {
 			kmrnr: this.$root.activekmr,
-			sid:this.$root.schema_obj[key].sid,
+			sid:tmpsid,
 			obj: null
 		}
 		fetch(this.$root.url+'/setschedule', {method: 'POST',headers: {'Content-Type': 'application/json;charset=utf-8'},body: JSON.stringify(bd)})

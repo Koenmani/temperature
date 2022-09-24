@@ -208,7 +208,7 @@ try:
 						if response['kamer'][t1]['exclude'] == True : #temperature is set manually on the radiator head
 							#send the temp to the radiator heads
 							#put to manual mode
-							print("%s Room %s in full manual mode. Excluding further instructions" % (cur_time(),t1), file=sys.stderr)
+							print("%s Room %s in full manual mode. Excluding further instructions" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
 							t2 = 0
 							while t2 < len(response['kamer'][t1]['radiator']):
 								if response['kamer'][t1]['radiator'][t2]['mac']:
@@ -225,7 +225,7 @@ try:
 								t2 = t2 + 1
 							
 						else: #automated radiator control or via console at least
-							print("%s Room %s in automated mode" % (cur_time(),t1), file=sys.stderr)
+							print("%s Room %s in automated mode" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
 							if insync:
 								#check if there is a closing offset defined, else use the general set one
 								print("%s In sync len %s" % (cur_time(),len(response['kamer'][t1]['radiator'])), file=sys.stderr)
@@ -265,6 +265,16 @@ try:
 									except:
 										ingesteld = float(response['kamer'][t1]['ingesteld']) #rolback, don't do anything
 								
+								if len(response['kamer'][t1]['airco']) > 0: #check if this room has an airco
+									#check if we already know this airco
+									if isknownairco(response['kamer'][t1]['airco'][0]['ip']) != True:
+										#add to airco list and initialize
+										print("%s New Airco unit found: %s Initializing" % (cur_time(),response['kamer'][t1]['airco'][0]['ip']), file=sys.stderr)
+										a = Airco(response['kamer'][t1]['airco'][0]['ip'])
+										a.update()
+										a.last_change = response['kamer'][t1]['airco'][0]['last_change']
+										airco_list.append(a)
+
 								if (ingesteld - co) > huidig: #if there is still hot water in the pipes, we should take closing offset into account
 									t2 = 0
 									useAC = False									
@@ -290,7 +300,7 @@ try:
 														# and reset last_change timer
 
 														#find highest temp for the rooms for this airco
-														t = highest_airco_temp(response['kamer'][t1]['airco'][0]['ip'],response['kamer'])
+														t = highest_airco_temp(response['kamer'][t1]['airco'][0]['ip'],response['kamer'][t1])
 														if (airco_list[t4].temp) != t: 
 															#apparently temp of one of the rooms has changed. We need to adjust and reset last_change time
 															#and re-send new instructions to the unit
@@ -310,20 +320,28 @@ try:
 																useAC = False #meaning also radiator will start heating up
 																#but we don't shut down the airco (yet), until temp is reached
 															else:
-																print("%s Room %s is heating with airco. Excluding further instructions for now" % (cur_time(),t1), file=sys.stderr)
+																print("%s Room %s is heating with airco. Excluding further instructions for now" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
 													else: #if it isn't open, start with airco
 														useAC = True
-														print("%s Room %s starts heating with airco. Excluding further instructions for now" % (cur_time(),t1), file=sys.stderr)
+														airco_list[t4].temp = float(response['kamer'][t1]['ingesteld'])
+														airco_list[t4].mode = 4
+														airco_list[t4].fdir = 0
+														airco_list[t4].frate= 'A'
+														print("%s Room %s starts heating with airco. Excluding further instructions for now" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
 												t4 = t4 + 1
 
 									if useAC == True: #airco is running and therefor all radiators in this room need to be excluded from further instructions
 										t4 = 0
+										doit = False
 										while t4 < len(airco_list): # look up the right object in the list
 											if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
-												airco_list[t4].activate_settings()
+												airco_list[t4].power = True
+												if airco_list[t4].activate_settings():
+													print("%s Started Airco: %s" % (cur_time(),airco_list[t4].host), file=sys.stderr)
+													doit = True
 												break;
 											t4 = t4 + 1
-										if t4 == len(airco_list):
+										if doit == False:
 											print("%s ERROR; Couldnt start airco" % (cur_time(),), file=sys.stderr)
 										t2 = 0
 										while t2 < len(response['kamer'][t1]['radiator']):
@@ -366,13 +384,15 @@ try:
 									# and if airco was running
 									if len(response['kamer'][t1]['airco']) > 0: #check if this room has an airco
 										t4 = 0
+										doit = False
 										while t4 < len(airco_list): # look up the right object in the list
 											if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
 												airco_list[t4].power = False
 												airco_list[t4].activate_settings()
+												doit = True
 												break;
 											t4 = t4 + 1
-										if t4 == len(airco_list):
+										if doit == False:
 											print("%s ERROR; Couldnt shut down airco" % (cur_time(),), file=sys.stderr)
 									
 									t2 = 0

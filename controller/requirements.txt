@@ -1,5 +1,5 @@
 python-dateutil==2.8.1
 psycopg2==2.8.4
 requests
-Flask==1.1.1
-Flask-Cors==3.0.8
+Flask
+Flask-Cors

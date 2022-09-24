@@ -32,6 +32,7 @@ const Rooms = {
 		}
 		else{
 			this.$parent.activekmr_cfg = this.item.tid
+			this.item.tmp_hand = this.item.ingesteld
 		}
 		
 	}

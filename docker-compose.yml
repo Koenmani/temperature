@@ -6,8 +6,8 @@ services:
       - TZ='Europe/Amsterdam'
       - VERWARMING_DB_IP=192.168.0.125
       - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=
-      - VERWARMING_DBPASS=
+      - VERWARMING_DBUSER=postgres
+      - VERWARMING_DBPASS=docker
     restart: unless-stopped
     build: "./"
     privileged: true
@@ -23,8 +23,8 @@ services:
       - TZ='Europe/Amsterdam'
       - VERWARMING_DB_IP=192.168.0.125
       - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=
-      - VERWARMING_DBPASS=
+      - VERWARMING_DBUSER=postgres
+      - VERWARMING_DBPASS=docker
     build: "./controller"
     restart: unless-stopped
     ports:
@@ -46,10 +46,10 @@ services:
       - VERWARMING_CLOSING_OFFSET=0.2
       - VERWARMING_HEATING_OFFSET=0.7
       - VERWARMING_SMART_HEAT=False
-      - VERWARMING_ONOFF_LON=
-      - VERWARMING_ONOFF_LAT=
-      - VERWARMING_ONOFF_API=
-      - AIRCO_OUTSIDE_TEMP_IP=
+      - VERWARMING_ONOFF_LON=4.60
+      - VERWARMING_ONOFF_LAT=51.87
+      - VERWARMING_ONOFF_API="b3e2781468f747d3a2781468f7d7d30b"
+      - AIRCO_OUTSIDE_TEMP_IP="192.168.0.137"
     build: "./onoffscripts"
     restart: unless-stopped
     privileged: true
@@ -69,8 +69,8 @@ services:
       - VERWARMING_ONOFF_RPI=http://192.168.0.125:8000/
       - VERWARMING_DB_IP=192.168.0.125
       - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=
-      - VERWARMING_DBPASS=
+      - VERWARMING_DBUSER=postgres
+      - VERWARMING_DBPASS=docker
     build: "./read_nefit_data"
     restart: unless-stopped
     networks:
@@ -86,9 +86,9 @@ services:
   nefit-easy:
     environment:
       - TZ='Europe/Amsterdam'
-      - NEFIT_SERIAL_NUMBER=
-      - NEFIT_ACCESS_KEY=
-      - NEFIT_PASSWORD=
+      - NEFIT_SERIAL_NUMBER=654950243
+      - NEFIT_ACCESS_KEY=bxaAMRfNvBJUmD5n
+      - NEFIT_PASSWORD=Hoera888
     build: "./nefit-easy"
     restart: unless-stopped
     networks:

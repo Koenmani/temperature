@@ -6,6 +6,7 @@ import socketserver
 import threading
 import time
 import requests
+import sys
 #import logging
 #import http.client as http_client
 #http_client.HTTPConnection.debuglevel = 1
@@ -43,11 +44,11 @@ class Airco():
         #f_rate (A auto,B silence,3 lvl_1,4	lvl_2,5	lvl_3,6	lvl_4,7	lvl_5)
         #f_dir (0	all wings stopped, 1	vertical wings motion, 2	horizontal wings motion, 3	vertical and horizontal wings motion)
         self.power = False
-        self.mode = MODE_AUTO
+        self.mode = self.MODE_AUTO
         self.temp = 0.0
         self.hum = 0
-        self.frate = FAN_POWER_AUTO
-        self.fdir = FAN_DIR_STOP
+        self.frate = self.FAN_POWER_AUTO
+        self.fdir = self.FAN_DIR_STOP
         self.last_change = None
 
     def update(self):
@@ -96,14 +97,21 @@ class Airco():
     def activate_settings(self):
         try:
             #pow=1&mode=1&stemp=26&shum=0&f_rate=B&f_dir=3
-            data = '?pow=%s&mode=%s&stemp=%s&shum=%s&f_rate=%s&f_dir=%s' % (self.power,self.mode,self.temp,self.hum,self.frate,self.fdir)
+            if self.power:
+                p=1
+            else:
+                p=0
+            
+            data = '?pow=%s&mode=%s&stemp=%s&shum=%s&f_rate=%s&f_dir=%s' % (p,self.mode,self.temp,self.hum,self.frate,self.fdir)
             r = requests.get('http://'+self.host+'/aircon/set_control_info'+data, timeout=5)
             returnobject = r.text.split(",")
             if returnobject[0].split("=")[1] == "OK":
                 return True
             else:
+                print("Airco returned following error" % (returnobject[0].split("=")[1]), file=sys.stderr)
                 return False
         except:
+            print("Airco not reached", file=sys.stderr)
             return False
 
 
