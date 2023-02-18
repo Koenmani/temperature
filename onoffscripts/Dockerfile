@@ -14,5 +14,5 @@ RUN apt-get update
 RUN apt-get -y install bluetooth bluez
 
 RUN pip3 install -r /usr/verwarming/requirements.txt
-ENTRYPOINT python3 verwarmonoff.py
+ENTRYPOINT python3 -u verwarmonoff.py
 CMD /bin/bash

@@ -85,11 +85,12 @@ def load_ot():
 		return 0
 
 def highest_airco_temp(ip,ro):
-	t = None
+	t = 0.0
 	for room in ro:
-		if room['airco'][0]['ip'] == ip:
-			if room['ingesteld'] > t:
-				t = room['ingesteld']
+		if len(room['airco']) > 0:
+			if room['airco'][0]['ip'] == ip:
+				if room['ingesteld'] > t:
+					t = room['ingesteld']
 	return t
 
 #########
@@ -128,6 +129,10 @@ if os.getenv("VERWARMING_HEATING_OFFSET") is not None:
 	heating_offset = os.getenv("VERWARMING_HEATING_OFFSET")
 else:
 	heating_offset = 0.7 #stop heating boiler 1 degree before the actual temperature has reached, but keep radiators open. Existing warm water will be enough to heat the room up last degree
+if os.getenv("AIRCO_VERWARMING_HEATING_OFFSET") is not None:
+	airco_heating_offset = os.getenv("AIRCO_VERWARMING_HEATING_OFFSET")
+else:
+	airco_heating_offset = 0.4 #stop heating boiler 1 degree before the actual temperature has reached, but keep radiators open. Existing warm water will be enough to heat the room up last degree
 if os.getenv("VERWARMING_SMART_HEAT") is not None:
 	smartheating = os.getenv("VERWARMING_SMART_HEAT")
 else:
@@ -149,6 +154,10 @@ if os.getenv("AIRCO_OUTSIDE_TEMP_IP") is not None:
 	airco_ot_ip = os.getenv("AIRCO_OUTSIDE_TEMP_IP")
 else:
 	airco_ot_ip = "192.168.0.137"
+if os.getenv("AIRCO_HEATING_TEMP_INCREASE") is not None:
+	airco_ht_inc = float(os.getenv("AIRCO_HEATING_TEMP_INCREASE"))
+else:
+	airco_ht_inc = 2.0
 
 try:
 	print("%s Starting up for the first time" % (cur_time(),), file=sys.stderr)
@@ -189,6 +198,14 @@ try:
 				t1 = 0
 				tempdiff = 0 # this value keeps track of the highest difference in temperature. We need this value later on
 				try:
+					discovery = response['discovery']
+				except:
+					discovery = False
+				if discovery: #Flush known radiator and airco list, as they have been renewed in DB
+					radiator_list = []
+					airco_list = []
+
+				try:
 					while t1 < len(response['kamer']):
 						if response['kamer'][t1]['ingesteld']:
 							ingesteld = float(response['kamer'][t1]['ingesteld'])
@@ -218,6 +235,7 @@ try:
 										if radiator_list[t4].address == response['kamer'][t1]['radiator'][t2]['mac']:
 											if radiator_list[t4].exclude == False:
 												radiator_list[t4].exclude = True
+												radiator_list[t4].status = 'exclude'
 												radiator_list[t4].set_manual_mode()
 												radiator_list[t4].set_temperature(ingesteld) 
 											break
@@ -300,34 +318,39 @@ try:
 														# and reset last_change timer
 
 														#find highest temp for the rooms for this airco
-														t = highest_airco_temp(response['kamer'][t1]['airco'][0]['ip'],response['kamer'][t1])
-														if (airco_list[t4].temp) != t: 
+														t = highest_airco_temp(response['kamer'][t1]['airco'][0]['ip'],response['kamer'])
+														if (airco_list[t4].temp) != (t+airco_ht_inc): 
 															#apparently temp of one of the rooms has changed. We need to adjust and reset last_change time
 															#and re-send new instructions to the unit
-															nu = datetime.now()
-															nu = nu.replace(tzinfo=tz.gettz('UTC'))
-															nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
-															airco_list[t4].last_change = nu
-															airco_list[t4].temp = t
+															airco_list[t4].temp = t + airco_ht_inc
+															airco_list[t4].power = False #not true, but to force re-sending power signal to airco
+															print("%s Room %s old temperature(%s) changed to (%s), resending new instructions" % (cur_time(),response['kamer'][t1]['tid'],airco_list[t4].temp,t-airco_ht_inc), file=sys.stderr)
 														else:
-															last_change = response['kamer'][t1]['airco'][0]['last_change']
+															#last_change = response['kamer'][t1]['airco'][0]['last_change']
 															nu = datetime.now()
 															nu = nu.replace(tzinfo=tz.gettz('UTC'))
 															nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
-															last_change_delta = last_change + timedelta(minutes=60)
-															if last_change_delta > nu: # if it is very long (>1 hr) and temp is not met... # useAC = False, but leave it on
-																print("%s Room %s is heating with airco. But for more than 1 hr already, start using radiator" % (cur_time(),t1), file=sys.stderr)
+															if airco_list[t4].last_change:
+																last_change_delta = airco_list[t4].last_change + timedelta(minutes=60)
+															else:
+																last_change_delta = nu
+															if last_change_delta < nu: # if it is very long (>1 hr) and temp is not met... # useAC = False, but leave it on
+																print("%s Room %s is heating with airco. But for more than 1 hr already (since: %s), start using radiator" % (cur_time(),response['kamer'][t1]['tid'], airco_list[t4].last_change), file=sys.stderr)
 																useAC = False #meaning also radiator will start heating up
 																#but we don't shut down the airco (yet), until temp is reached
 															else:
 																print("%s Room %s is heating with airco. Excluding further instructions for now" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
+																useAC = True
 													else: #if it isn't open, start with airco
-														useAC = True
-														airco_list[t4].temp = float(response['kamer'][t1]['ingesteld'])
-														airco_list[t4].mode = 4
-														airco_list[t4].fdir = 0
-														airco_list[t4].frate= 'A'
-														print("%s Room %s starts heating with airco. Excluding further instructions for now" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
+														if float(ingesteld - huidig) > float(airco_heating_offset):
+															useAC = True
+															airco_list[t4].temp = float(response['kamer'][t1]['ingesteld']) + airco_ht_inc
+															airco_list[t4].mode = 4
+															airco_list[t4].fdir = 0
+															airco_list[t4].frate= 'A'
+															print("%s Room %s starts heating with airco  . Excluding further instructions for now" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
+														else:
+															print("%s Room %s wants to start heating with airco, but is not within heating offset" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
 												t4 = t4 + 1
 
 									if useAC == True: #airco is running and therefor all radiators in this room need to be excluded from further instructions
@@ -335,34 +358,58 @@ try:
 										doit = False
 										while t4 < len(airco_list): # look up the right object in the list
 											if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
-												airco_list[t4].power = True
-												if airco_list[t4].activate_settings():
-													print("%s Started Airco: %s" % (cur_time(),airco_list[t4].host), file=sys.stderr)
+												if airco_list[t4].power == False:
+													airco_list[t4].power = True
+													if airco_list[t4].activate_settings():
+														nu = datetime.now()
+														nu = nu.replace(tzinfo=tz.gettz('UTC'))
+														nu = nu.astimezone(tz.gettz('Europe/Amsterdam'))
+														airco_list[t4].last_change = nu
+														print("%s Started Airco: %s" % (cur_time(),airco_list[t4].host), file=sys.stderr)
+														doit = True
+												else:
+													print("%s Airco already running, keep going" % (cur_time(),), file=sys.stderr)
 													doit = True
 												break;
 											t4 = t4 + 1
 										if doit == False:
 											print("%s ERROR; Couldnt start airco" % (cur_time(),), file=sys.stderr)
-										t2 = 0
-										while t2 < len(response['kamer'][t1]['radiator']):
-											if response['kamer'][t1]['radiator'][t2]['mac']:
-												exclude.append(response['kamer'][t1]['radiator'][t2]['mac'])
-												t4 = 0
-												while t4 < len(radiator_list): # look up the right object in the list
-													if radiator_list[t4].address == response['kamer'][t1]['radiator'][t2]['mac']:
-														if radiator_list[t4].exclude == False:
-															radiator_list[t4].exclude = True
-															radiator_list[t4].set_manual_mode()
-															radiator_list[t4].set_temperature(ingesteld) 
-														break
-													t4 = t4 + 1
-											t2 = t2 + 1
+										if len(response['kamer'][t1]['radiator']) > 0:
+											t2 = 0
+											while t2 < len(response['kamer'][t1]['radiator']):
+												if response['kamer'][t1]['radiator'][t2]['mac']:
+													if "@" in response['kamer'][t1]['radiator'][t2]['mac']:
+														radiator_close.append(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0])
+													else:
+														radiator_close.append(response['kamer'][t1]['radiator'][t2]['mac'])
+													print("%s Airco already running, keep radiator closed" % (cur_time(),), file=sys.stderr)
+													if (isknownhead(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0]) != True):
+														print("%s Found new radiator head, initializing" % (cur_time(),), file=sys.stderr)
+														h = EQ3Thermostat(response['kamer'][t1]['radiator'][t2]['mac'])
+														radiator_list.append(h)
+														h.set_manual_mode()
+														time.sleep(4) # wait for stabilization
+														#h.lock_thermostat()
+													
+													
+													#exclude.append(response['kamer'][t1]['radiator'][t2]['mac'])
+													#t4 = 0
+													#while t4 < len(radiator_list): # look up the right object in the list
+													#	if radiator_list[t4].address == response['kamer'][t1]['radiator'][t2]['mac']:
+													#		if radiator_list[t4].exclude == False:
+													#			radiator_list[t4].exclude = True
+													#			radiator_list[t4].set_manual_mode()
+													#			radiator_list[t4].set_temperature(ingesteld) 
+													#		break
+													#	t4 = t4 + 1
+												t2 = t2 + 1
 									
 									else: # AC is not used, lets take a look at the radiators
 										diff = ingesteld - huidig
 										if tempdiff < diff: #keep track of highest difference in temperature for CV heating
 											tempdiff = diff
 										if len(response['kamer'][t1]['radiator']) > 0:
+											t2 = 0
 											while t2 < len(response['kamer'][t1]['radiator']):
 												#print("%s Opening radiotor for room: %s with mac-adres: %s" % (cur_time(),response['kamer'][t1]['naam'],response['kamer'][t1]['radiator'][t2]['mac']), file=sys.stderr)
 												if response['kamer'][t1]['radiator'][t2]['mac']:
@@ -370,7 +417,7 @@ try:
 														radiator_open.append(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0])
 													else:
 														radiator_open.append(response['kamer'][t1]['radiator'][t2]['mac'])
-													
+													print("%s Opening up radiator" % (cur_time(),), file=sys.stderr)
 													if (isknownhead(response['kamer'][t1]['radiator'][t2]['mac'].split("@")[0]) != True):
 														print("%s Found new radiator head, initializing" % (cur_time(),), file=sys.stderr)
 														h = EQ3Thermostat(response['kamer'][t1]['radiator'][t2]['mac'])
@@ -387,9 +434,13 @@ try:
 										doit = False
 										while t4 < len(airco_list): # look up the right object in the list
 											if airco_list[t4].host == response['kamer'][t1]['airco'][0]['ip']: #found our airco unit
-												airco_list[t4].power = False
-												airco_list[t4].activate_settings()
-												doit = True
+												if airco_list[t4].power:
+													airco_list[t4].power = False
+													airco_list[t4].activate_settings()
+													doit = True
+													print("%s Temp has been met, shut down airco" % (cur_time(),), file=sys.stderr)
+												else:
+													doit = True																										
 												break;
 											t4 = t4 + 1
 										if doit == False:
@@ -484,6 +535,7 @@ try:
 									radiator_list[t4].force_command = 0
 								else:
 									print("%s Failed for %s, retry next time" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
+									radiator_list[t4].force_command = radiator_list[t4].force_command + 1
 						elif radiator_list[t4].address in radiator_close:
 							print("%s Closing radiator %s" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
 							if radiator_list[t4].temperature == 0 and radiator_list[t4].status != 'error' and radiator_list[t4].force_command < 5: #force a fresh signal at least every 5 minutes
@@ -497,6 +549,7 @@ try:
 									radiator_list[t4].force_command = 0
 								else:
 									print("%s Failed for %s, retry next time" % (cur_time(),radiator_list[t4].address), file=sys.stderr)
+									radiator_list[t4].force_command = radiator_list[t4].force_command + 1
 						elif radiator_list[t4].address in exclude:
 							a=0 #dont know yet
 						elif radiator_list[t4].address in outofsync:
@@ -532,34 +585,34 @@ try:
 						if serious_radiator_problem:
 							#If a closing radiator is in error for 15min, we should close CV as well... else it will overheat
 							#unless there is nothing else open anyway
-							print("%s Closing_radiator_problem, closing CV to prevent overheat" % (cur_time(),), file=sys.stderr)
+							print("%s Opening_radiator_problem, closing CV to prevent overheat" % (cur_time(),), file=sys.stderr)
 							if CV_openclose(5):
 								verwarming = False
 								heatingcounter = 0
-						
-						print("%s Radiators are open, warming up CV" % (cur_time(),), file=sys.stderr)
-						print("%s Biggest difference %s and heating offset %s" % (cur_time(),tempdiff,heating_offset), file=sys.stderr)
-						if float(tempdiff) > float(heating_offset): 
-							#Only heat up the boiler is there is at least one room where the temp exceeds the heating offset 
-							#and warm water is still in the pipes
-							print("%s There is a huge temperature difference, warming up CV" % (cur_time(),), file=sys.stderr)
-							if CV_openclose(30):
-								verwarming = True
-							#print("%s There is a huge temperature difference" % (cur_time(),), file=sys.stderr)
-							#if not verwarming or first_load: #check if it was not already heating
-							#	print("%s No active hot water in pipes, warming up CV" % (cur_time(),), file=sys.stderr)
-							#	if CV_openclose(30):
-							#		verwarming = True
-							#else:
-							#	print("%s Hot water still active, no need to start CV" % (cur_time(),), file=sys.stderr)
 						else:
-							print("%s Difference in temp is within offset" % (cur_time(),), file=sys.stderr)
-							if verwarming or first_load: #if it was still heating, close it
-								print("%s Hot water is still active, we can already close CV assuming it will remain heating to set temperature" % (cur_time(),), file=sys.stderr)
-								if CV_openclose(5):
-									verwarming = False
+							print("%s Radiators are open, warming up CV" % (cur_time(),), file=sys.stderr)
+							print("%s Biggest difference %s and heating offset %s" % (cur_time(),tempdiff,heating_offset), file=sys.stderr)
+							if float(tempdiff) > float(heating_offset): 
+								#Only heat up the boiler is there is at least one room where the temp exceeds the heating offset 
+								#and warm water is still in the pipes
+								print("%s There is a huge temperature difference, warming up CV" % (cur_time(),), file=sys.stderr)
+								if CV_openclose(30):
+									verwarming = True
+								#print("%s There is a huge temperature difference" % (cur_time(),), file=sys.stderr)
+								#if not verwarming or first_load: #check if it was not already heating
+								#	print("%s No active hot water in pipes, warming up CV" % (cur_time(),), file=sys.stderr)
+								#	if CV_openclose(30):
+								#		verwarming = True
+								#else:
+								#	print("%s Hot water still active, no need to start CV" % (cur_time(),), file=sys.stderr)
 							else:
-								print("%s CV is already closed" % (cur_time(),), file=sys.stderr)
+								print("%s Difference in temp is within offset" % (cur_time(),), file=sys.stderr)
+								if verwarming or first_load: #if it was still heating, close it
+									print("%s Hot water is still active, we can already close CV assuming it will remain heating to set temperature" % (cur_time(),), file=sys.stderr)
+									if CV_openclose(5):
+										verwarming = False
+								else:
+									print("%s CV is already closed" % (cur_time(),), file=sys.stderr)
 					else:
 						print("%s No radiators open, closing CV" % (cur_time(),), file=sys.stderr)
 						heatingcounter = heatingcounter + 1
@@ -579,7 +632,7 @@ try:
 			print("%s Waiting for one minute for next batch" % (cur_time(),), file=sys.stderr)
 			time.sleep(60)
 			updatecounter = updatecounter + 1
-			if updatecounter > 15: #call update every 15min to update outside temp
+			if updatecounter == 15 or updatecounter == 30 or updatecounter == 45 or updatecounter == 60: #call update every 15min to update outside temp
 				outside_temp = load_ot()
 			if updatecounter > 60: #call update every hour to check for battery status
 				t4 = 0

@@ -89,7 +89,7 @@ class Airco():
         self.frate = rate
 
     def set_fan_dir(self, dir):
-        self.frate = dir
+        self.fdir = dir
 
     def set_fan_dir(self, t):
         self.temp = t

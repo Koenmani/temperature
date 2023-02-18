@@ -14,9 +14,40 @@ from psycopg2 import OperationalError, errorcodes, errors
 import requests
 import traceback
 import dbconfig
+import os
 
 app = Flask(__name__)
 cors = CORS(app)
+
+def load_ot():
+	try:
+		r = requests.get(airco_ip+'/aircon/get_sensor_info', timeout=5)
+		returnobject = r.text.split(",")
+		if returnobject[0].split("=")[1] == "OK":
+			for o in returnobject:
+				if o.split("=")[0] == 'otemp':
+					return float(o.split("=")[1])
+		else:
+			print("%s Could not get sensor info from airco: %s" % (cur_time(),airco_ip), file=sys.stderr)
+			return 0
+		
+	except:
+		return 0
+
+def load_airo_power():
+	try:
+		r = requests.get(airco_ip+'/aircon/get_control_info', timeout=5)
+		returnobject = r.text.split(",")
+		if returnobject[0].split("=")[1] == "OK":
+			for o in returnobject:
+				if o.split("=")[0] == 'pow':
+					if int(o.split("=")[1]) == 0:
+						return False
+					else:
+						return True
+	except:
+		print("%s Could not get control info from airco: %s" % (cur_time(),airco_ip), file=sys.stderr)
+		return False
 
 @app.route("/setschedule", methods=['POST'])
 def setschedule():
@@ -169,6 +200,8 @@ def setreading():
 							return jsonify('done')
 						else:
 							#print("[%s] Same readings within 10 min, no need to update" % (cur_time(),))
+							cur.execute( "UPDATE verwarmschema.thermostaat SET datumtijd='%s' WHERE tid='%s'" % (datumtijd,tid,) )
+							conn.commit()
 							return jsonify('done')
 				else:
 					print("[%s] Sensor does not exist in database. You need to add it manually" % (cur_time(),))
@@ -192,7 +225,7 @@ def verwarmingstatus():
 			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude,r.lowbattery,t.fk_aid FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
 			conn.commit()
 			if cur.rowcount != 0:
-				x = {"kamer" : [], "tijd" :[]}
+				x = {"kamer" : [], "tijd" :[], "otemp" :[]}
 				y = None
 				nu = datetime.today()
 				nu = nu.replace(tzinfo=tz.gettz('UTC'))
@@ -330,7 +363,11 @@ def verwarmingstatus():
 							conn.commit()
 							res = cur.fetchall()
 							for r in res:
-								y['airco'].append({"ip": r[0],"open_close": r[1], "last_change": r[2]})
+								if load_airo_power():
+									open_close = 1
+								else:
+									open_close = 0
+								y['airco'].append({"ip": r[0],"open_close": open_close, "last_change": r[2]})
 							
 						tid = int(result[0])
 					else:
@@ -340,6 +377,8 @@ def verwarmingstatus():
 				if y:
 					x['kamer'].append(y)
 					x['tijd'].append({"tijd" : nu.astimezone(tz.gettz('Europe/Amsterdam'))})
+					x['otemp'].append({'otemp' : load_ot()})
+
 				return jsonify(x)
 				#print("got row: %s" % (row,))
 		except Exception as err:
@@ -613,4 +652,8 @@ def connectdb():
 		print("%s Database is not available" % (cur_time(),), file=sys.stderr)
 		return False
 
+if os.getenv("AIRCO_IP") is not None:
+	airco_ip = os.getenv("AIRCO_IP")
+else:
+	airco_ip = 'http://192.168.0.135' #ip:port to the api serving the interface to the CV/heater
 app.run(host='0.0.0.0')

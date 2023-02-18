@@ -5,8 +5,8 @@
 #include <NimBLEDevice.h>
 #include <stdlib.h>
 
-const char *ssid = "VBwifiBerging";
-const char *password = "Hoera888";
+const char *ssid = "xxx";
+const char *password = "xxx";
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
 static BLEUUID serviceUUID("3e135142-654f-9090-134a-a6ff5bb77046");
