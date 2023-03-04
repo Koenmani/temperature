@@ -9,9 +9,18 @@ from eq3_control_object import EQ3Thermostat
 from daikin_control_object import Airco
 import traceback
 import os
+import json
 
 class Custom():
-	def __init__(self, custom):
+	# {
+	# 	"on" : str, #String Value containing a bash or http command to execute
+	# 	"off" : str, #String Value containing a bash or http command to execute
+	# 	"set_temp" : str, #String Value containing a bash or http command to execute
+	# 	"get status" str, #String Value containing a bash or http command to execute
+	# 	"update": str #String Value containing a bash or http command to execute
+	# }
+	
+	def __init__(self, custom, protocol):
 		self.power = False
 		self.temp = 0.0
 		self.last_change = None
@@ -21,6 +30,41 @@ class Custom():
 		self.ingesteld = 0
 		self.name = 'custom'
 		self.failedtimes = 0
+		self.oncmd = None
+		self.offcmd = None
+		self.set_tempcmd = None
+		self.get_statuscmd = None
+		self.updatecmd = None
+		self.protocol = protocol
+		self._load_commands()
+
+	def _load_commands(self):
+		try:
+			c = json.loads(self.custom)
+			self.custom = c
+		except:
+			c = None
+		try:
+			self.oncmd = c['on']
+		except:
+			self.oncmd = None
+		try:
+			self.offcmd = c['off']
+		except:
+			self.offcmd = None
+		try:
+			self.set_tempcmd = c['set_temp']
+		except:
+			self.set_tempcmd = None
+		try:
+			self.get_statuscmd = c['get status']
+		except:
+			self.get_statuscmd = None
+		try:
+			self.updatecmd = c['update']
+		except:
+			self.updatecmd = None
+
 
 def mysort(e)										:
 	return e['priority']
@@ -69,38 +113,6 @@ def load_forecast():
 	except:
 		forecast = None
 
-def isknownhead(mac):
-	global radiator_list
-	t1 = 0
-	while t1 < len(radiator_list):
-		if radiator_list[t1].address == mac:
-			return True		
-		t1 = t1 + 1
-	return False
-
-def isknownairco(ip):
-	global airco_list
-	t1 = 0
-	while t1 < len(airco_list):
-		if airco_list[t1].host == ip:
-			return True		
-		t1 = t1 + 1
-	return False
-
-def load_ot():
-	try:
-		r = requests.get('http://'+airco_ot_ip+'/aircon/get_sensor_info', timeout=5)
-		returnobject = r.text.split(",")
-		if returnobject[0].split("=")[1] == "OK":
-			for o in returnobject:
-				if o.split("=")[0] == 'otemp':
-					return float(o.split("=")[1])
-		else:
-			return 0
-		
-	except:
-		return 0
-
 def highest_airco_temp(ip,ro):
 	t = 0.0
 	for room in ro:
@@ -145,7 +157,7 @@ def clean_device_list(response, test=False):
 				a.last_change = d['last_change']
 				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(d['custom'])+hash(d['protocol'])+hash(d['name']))] = a
 			else: #custom
-				c = Custom(d['custom'])
+				c = Custom(d['custom'],d['protocol'])
 				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(d['custom'])+hash(d['protocol'])+hash(d['name']))] = c
 
 def check_opening_offset(device, huidig, ingesteld, offset=None):
@@ -293,7 +305,7 @@ def process_rooms(response, test=False):
 										device_close.append(hashy)
 							else: #custom device & radiator & airco
 								#first check offset
-								if check_opening_offset(device, huidig, ingesteld, co): #We need to see if the opening offset is met
+								if check_opening_offset(device, huidig, ingesteld, co) or device_list[hashy].status == 'on': #We need to see if the opening offset is met, unless it was already open
 									if device['name'] == 'airco':
 										device_list[hashy].ingesteld = highest_airco_temp(device['ip'],response['kamer']) #find highest temperature set for the airco unit
 									else:
@@ -376,7 +388,10 @@ def device_on_off(test=False):
 				if doit == False:
 					print("%s ERROR; Couldnt start airco" % (cur_time(),), file=sys.stderr)
 			else:
+				
 				device_list[device_hash].status = 'on'
+				
+				
 				print("%s Uknown device command for open %s" % (cur_time(),device_list[device_hash].name), file=sys.stderr)
 		elif device_hash in device_close or device_hash in outofsync:
 			if device_hash in outofsync:
@@ -602,11 +617,11 @@ if __name__ == '__main__':
 						break
 					
 					try:
-						print("%s Total of %s radiator heads" % (cur_time(),len(device_list)), file=sys.stderr)
+						print("%s Total of %s devices" % (cur_time(),len(device_list)), file=sys.stderr)
 						#loop through all radiator heads and see if it needs to be set to open or close
 						device_on_off()						
 					except:
-						print("%s Failed to open/close all radiator(s)" % (cur_time(),), file=sys.stderr)
+						print("%s Failed to open/close all devices(s)" % (cur_time(),), file=sys.stderr)
 						traceback.print_exc()
 
 					try:
