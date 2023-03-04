@@ -25,6 +25,9 @@ class EQ3Thermostat(object):
         self.status = 'initializing'
         self.lowbattery = False
         self.force_command = 0
+        self.last_change = None
+        self.ingesteld = 0
+        self.name = 'radiator'
         #self.update()
 
     def update(self):
@@ -140,7 +143,11 @@ class EQ3Thermostat(object):
             self.failedtimes = self.failedtimes + 1
             return False
     
-    def set_valve_open(self):
+    def set_valve_open(self, test):
+        if test:
+            self.temperature = 100
+            self.failedtimes = 0
+            return True
         try:
             if (self.remoteaddress):
                 r = requests.get('http://'+self.remoteaddress+'/valve?mac='+self.address+"&status=open", timeout=30)
@@ -174,7 +181,11 @@ class EQ3Thermostat(object):
             self.failedtimes = self.failedtimes + 1
             return False
     
-    def set_valve_close(self):
+    def set_valve_close(self, test):
+        if test:
+            self.temperature = 0
+            self.failedtimes = 0
+            return True
         try:
             if (self.remoteaddress):
                 r = requests.get('http://'+self.remoteaddress+'/valve?mac='+self.address+"&status=closed", timeout=30)

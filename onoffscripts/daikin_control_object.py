@@ -50,9 +50,17 @@ class Airco():
         self.frate = self.FAN_POWER_AUTO
         self.fdir = self.FAN_DIR_STOP
         self.last_change = None
+        self.exclude = False
+        self.status = 'initializing'
+        self.ingesteld = 0
+        self.name = 'airco'
+        self.failedtimes = 0
+        self.force_command = 0
 
-    def update(self):
+    def update(self, test=False):
         #ret=OK,pow=0,mode=3,adv=,stemp=23.0,shum=0,dt1=25.0,dt2=M,dt3=23.0,dt4=25.0,dt5=25.0,dt7=25.0,dh1=AUTO,dh2=50,dh3=0,dh4=0,dh5=0,dh7=AUTO,dhh=50,b_mode=3,b_stemp=23.0,b_shum=0,alert=255,f_rate=A,f_dir=0,b_f_rate=A,b_f_dir=0,dfr1=5,dfr2=5,dfr3=A,dfr4=5,dfr5=5,dfr6=5,dfr7=5,dfrh=5,dfd1=0,dfd2=0,dfd3=0,dfd4=0,dfd5=0,dfd6=0,dfd7=0,dfdh=0,dmnd_run=0,en_demand=0
+        if test:
+            return True
         try:
             r = requests.get('http://'+self.host+'/aircon/get_control_info', timeout=5)
             returnobject = r.text.split(",")
@@ -94,7 +102,9 @@ class Airco():
     def set_fan_dir(self, t):
         self.temp = t
 
-    def activate_settings(self):
+    def activate_settings(self,test):
+        if test:
+            return True
         try:
             #pow=1&mode=1&stemp=26&shum=0&f_rate=B&f_dir=3
             if self.power:
@@ -106,12 +116,15 @@ class Airco():
             r = requests.get('http://'+self.host+'/aircon/set_control_info'+data, timeout=5)
             returnobject = r.text.split(",")
             if returnobject[0].split("=")[1] == "OK":
+                self.failedtimes = 0
                 return True
             else:
                 print("Airco returned following error" % (returnobject[0].split("=")[1]), file=sys.stderr)
+                self.failedtimes = self.failedtimes + 1
                 return False
         except:
             print("Airco not reached", file=sys.stderr)
+            self.failedtimes = self.failedtimes + 1
             return False
 
 

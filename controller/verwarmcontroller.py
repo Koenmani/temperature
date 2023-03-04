@@ -349,7 +349,8 @@ def verwarmingstatus():
 							"smartheat": smartheat,
 							"lowbattery": lowbat,
 							"radiator":[],
-							"airco":[]
+							"airco":[],
+							"devices":[]
 						}
 						cur.execute( "select r.mac, r.open_close, r.lowbattery from verwarmschema.radiator r where fk_tid=%s" % (result[0],))
 						conn.commit()
@@ -368,7 +369,12 @@ def verwarmingstatus():
 								else:
 									open_close = 0
 								y['airco'].append({"ip": r[0],"open_close": open_close, "last_change": r[2]})
-							
+						# add all devices
+						cur.execute( "select * from verwarmschema.device left outer join verwarmschema.room_device on did=fk_did left outer join verwarmschema.thermostaat on fk_tid=tid where fk_tid=%s" % (result[0],))
+						conn.commit()
+						res = cur.fetchall()
+						for r in res:
+							y['devices'].append({"ip":r[1],"mac":r[2],"custom":r[3],"protocol":r[4],"name":r[5],"priority":r[6],"open_close":r[7],"lowbattery":r[8],"last_change":r[9]})
 						tid = int(result[0])
 					else:
 						pass
