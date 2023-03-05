@@ -34,9 +34,11 @@ def load_ot():
 	except:
 		return 0
 
-def load_airo_power():
+def load_airo_power(ip = None):
 	try:
-		r = requests.get(airco_ip+'/aircon/get_control_info', timeout=5)
+		if not ip:
+			ip = airco_ip
+		r = requests.get('http://'+ip+'/aircon/get_control_info', timeout=5)
 		returnobject = r.text.split(",")
 		if returnobject[0].split("=")[1] == "OK":
 			for o in returnobject:
@@ -46,7 +48,7 @@ def load_airo_power():
 					else:
 						return True
 	except:
-		print("%s Could not get control info from airco: %s" % (cur_time(),airco_ip), file=sys.stderr)
+		print("%s Could not get control info from airco: %s" % (cur_time(),ip), file=sys.stderr)
 		return False
 
 @app.route("/setschedule", methods=['POST'])
@@ -222,7 +224,7 @@ def verwarmingstatus():
 	global conn,cur
 	if connectdb():
 		try:
-			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude,r.lowbattery,t.fk_aid FROM verwarmschema.thermostaat t left outer join verwarmschema.radiator r on tid=fk_tid ORDER BY tid")
+			cur.execute( "SELECT t.tid,t.kamer_naam,t.huidige_temp,t.ingestelde_temp,r.mac,handmatig,r.open_close,t.datumtijd,t.ofset,t.smartheat,t.handmatig_tijd,t.exclude,r.lowbattery FROM verwarmschema.thermostaat t left outer join verwarmschema.room_device rd on tid=rd.fk_tid left outer join verwarmschema.device r on rd.fk_did=did ORDER BY tid")
 			conn.commit()
 			if cur.rowcount != 0:
 				x = {"kamer" : [], "tijd" :[], "otemp" :[]}
@@ -348,33 +350,37 @@ def verwarmingstatus():
 							"offset": offset,
 							"smartheat": smartheat,
 							"lowbattery": lowbat,
-							"radiator":[],
-							"airco":[],
 							"devices":[]
 						}
-						cur.execute( "select r.mac, r.open_close, r.lowbattery from verwarmschema.radiator r where fk_tid=%s" % (result[0],))
-						conn.commit()
-						res = cur.fetchall()
-						for r in res:
-							y['radiator'].append({"mac": r[0],"open_close": r[1], "lowbattery": r[2]})
-							if r[2] == True:
-								lowbat = True
-						if result[13]:
-							cur.execute( "select a.ip, a.open_close, a.last_change from verwarmschema.airco a where aid=%s" % (result[13],))
-							conn.commit()
-							res = cur.fetchall()
-							for r in res:
-								if load_airo_power():
-									open_close = 1
-								else:
-									open_close = 0
-								y['airco'].append({"ip": r[0],"open_close": open_close, "last_change": r[2]})
+						#cur.execute( "select r.mac, r.open_close, r.lowbattery from verwarmschema.radiator r where fk_tid=%s" % (result[0],))
+						#conn.commit()
+						#res = cur.fetchall()
+						#for r in res:
+						#	y['radiator'].append({"mac": r[0],"open_close": r[1], "lowbattery": r[2]})
+						#	if r[2] == True:
+						#		lowbat = True
+						# if result[13]:
+						# 	cur.execute( "select a.ip, a.open_close, a.last_change from verwarmschema.airco a where aid=%s" % (result[13],))
+						# 	conn.commit()
+						# 	res = cur.fetchall()
+						# 	for r in res:
+						# 		if load_airo_power():
+						# 			open_close = 1
+						# 		else:
+						# 			open_close = 0
+						# 		y['airco'].append({"ip": r[0],"open_close": open_close, "last_change": r[2]})
 						# add all devices
 						cur.execute( "select * from verwarmschema.device left outer join verwarmschema.room_device on did=fk_did left outer join verwarmschema.thermostaat on fk_tid=tid where fk_tid=%s" % (result[0],))
 						conn.commit()
 						res = cur.fetchall()
 						for r in res:
-							y['devices'].append({"ip":r[1],"mac":r[2],"custom":r[3],"protocol":r[4],"name":r[5],"priority":r[6],"open_close":r[7],"lowbattery":r[8],"last_change":r[9]})
+							oc = r[7]
+							if r[5] == 'airco':								
+								if load_airo_power(r[1]):
+									oc = 1
+								else:
+									oc = 0
+							y['devices'].append({"ip":r[1],"mac":r[2],"custom":r[3],"protocol":r[4],"name":r[5],"priority":r[6],"open_close":oc,"lowbattery":r[8],"last_change":r[9]})
 						tid = int(result[0])
 					else:
 						pass
@@ -569,7 +575,8 @@ def setradiatorbattery():
 		
 		if connectdb():
 			try:
-				cur.execute( "UPDATE verwarmschema.radiator SET lowbattery='%s' WHERE mac='%s'" % (battery_status,mac) )
+				#cur.execute( "UPDATE verwarmschema.radiator SET lowbattery='%s' WHERE mac='%s'" % (battery_status,mac) )
+				cur.execute( "UPDATE verwarmschema.device SET lowbattery='%s' WHERE mac='%s'" % (battery_status,mac) )
 				conn.commit()
 				return jsonify('done')
 			except Exception as err:
@@ -601,17 +608,19 @@ def setradiator():
 		
 		if connectdb():
 			try:
-				cur.execute( "UPDATE verwarmschema.radiator SET open_close='%s' WHERE mac='%s'" % (v,mac) )
+				#cur.execute( "UPDATE verwarmschema.radiator SET open_close='%s' WHERE mac='%s'" % (v,mac) )
+				cur.execute( "UPDATE verwarmschema.device SET open_close='%s' WHERE mac='%s'" % (v,mac) )
 				conn.commit()
-				cur.execute( "SELECT rid FROM verwarmschema.radiator WHERE mac='%s'" % (mac,) )
+				#cur.execute( "SELECT rid FROM verwarmschema.radiator WHERE mac='%s'" % (mac,) )
+				cur.execute( "SELECT did FROM verwarmschema.device WHERE mac='%s'" % (mac,) )
 				conn.commit()
 				if cur.rowcount != 0:
-					fk_rid = cur.fetchone()[0]
+					fk_did = cur.fetchone()[0]
 					utc = datetime.now()
 					utc = utc.replace(tzinfo=tz.gettz('UTC'))
 					utc = utc.astimezone(tz.gettz('Europe/Amsterdam'))
 					datumtijd = datetime.strftime(utc, "%m/%d/%Y, %H:%M:%S")
-					cur.execute( "INSERT INTO verwarmschema.radiator_history (fk_rid,open_close,datumtijd) VALUES ('%s','%s','%s')" % (fk_rid,v,datumtijd) )
+					cur.execute( "INSERT INTO verwarmschema.radiator_history (fk_did,open_close,datumtijd) VALUES ('%s','%s','%s')" % (fk_did,v,datumtijd) )
 					conn.commit()
 				return jsonify('done')
 			except Exception as err:

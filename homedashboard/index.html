@@ -11,7 +11,12 @@
 	        <a v-on:click="activetab=2" v-bind:class="[ activetab === 2 ? 'active' : '' ]">Energy/Gas</a>
 	        <a v-on:click="activetab=3" v-bind:class="[ activetab === 3 ? 'active' : '' ]">Watering</a>
 	        <a v-on:click="activetab=4" v-bind:class="[ activetab === 4 ? 'active' : '' ]">Verwarming</a>
+			<a v-on:click="activetab=5" v-bind:class="[ activetab === 5 ? 'active' : '' ]">Airco</a>
+			<div id="otemp" class="buiten_temp">
+				Buiten:	{{ outside_temp }}&#176;
+			</div>
 	    </div>
+		
 	
 	    <div class="content">
 	        <div v-if="activetab === 1" class="tabcontent">
@@ -27,6 +32,9 @@
 					</div>
 					<div v-bind:class="[ watering_status === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="activetab=3">
 						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Watering</div>
+					</div>
+					<div v-bind:class="[ airco === true ? 'cvactive showstatus_box' : 'cvinactive showstatus_box' ]" v-on:click="activetab=5">
+						<div v-bind:class="[ error === true ? 'error status_box_title' : 'status_box_title' ]">Airco</div>
 					</div>
 				</div>
 				<div class="kamer_wrapper">
@@ -87,6 +95,7 @@
 <script src="navigation.js"></script>
 <script type="module">
 var rpi = "http://192.168.0.125"
+var aircoip = 'http://192.168.0.135'
 const VM = new Vue({
   el: '#tabs',
   components: {
@@ -106,6 +115,7 @@ const VM = new Vue({
     activekmr_cfg: 0,
     activeschema: "",
     verwarming:false,
+	airco:false,
     lighting:false,
     ventilator:false,
     error:false,
@@ -118,6 +128,7 @@ const VM = new Vue({
     popuparrowtop:0,
     popuparrowel:null,
     old_temp_obj:0,
+	outside_temp:0.0,
     ip: rpi,
 	url: rpi+":6543", //rpi
 	//url: "http://192.168.0.153:5000", //local
@@ -193,6 +204,17 @@ const VM = new Vue({
 		.then(response => response.json())
 		.then(json => {
 			this.kamer_obj = json['kamer']
+			this.airco = false;
+			for (let i = 0; i < json['kamer'].length; i++) {
+				for (let j = 0; j < json['kamer'][i]['devices'].length; j++) {
+					if (json['kamer'][i]['devices'][j]['name'] == 'airco'){
+						if (json['kamer'][i]['devices'][j]['open_close'] == 1){
+							this.airco = true;
+						}
+					}
+				}
+			}
+			this.outside_temp = json['otemp'][0]['otemp'];
 		})	
 	},fetchventstatus(){
 		fetch(rpi+':9876/fanstatus')
