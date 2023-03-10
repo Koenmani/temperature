@@ -8,6 +8,7 @@ COPY ./requirements.txt /usr/verwarming/
 COPY ./verwarmonoff.py /usr/verwarming/verwarmonoff.py
 COPY ./eq3_control_object.py /usr/verwarming/eq3_control_object.py
 COPY ./daikin_control_object.py /usr/verwarming/daikin_control_object.py
+COPY ./custom_control_object.py /usr/verwarming/custom_control_object.py
 
 RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d
 RUN apt-get update

@@ -559,8 +559,8 @@ if __name__ == '__main__':
 				#r = requests.get('http://verwarmcontroller:5000/verwarmingstatus')
 				print("%s Requesting new status" % (cur_time(),), file=sys.stderr)
 				rpi_temp = rpi.split(":")[0]+":"+rpi.split(":")[1]
-				#r = requests.get(rpi_temp+':6543/verwarmingstatus', timeout=5)
-				r = requests.get('http://localhost:5000/verwarmingstatus')
+				r = requests.get(rpi_temp+':6543/verwarmingstatus', timeout=5)
+				#r = requests.get('http://localhost:5000/verwarmingstatus')
 				if r:
 					#print("%s Got a response" % (cur_time(),), file=sys.stderr)
 					response = r.json()
