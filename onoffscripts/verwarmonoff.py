@@ -7,64 +7,10 @@ from dateutil import tz
 import requests
 from eq3_control_object import EQ3Thermostat
 from daikin_control_object import Airco
+from custom_control_object import Custom
 import traceback
 import os
 import json
-
-class Custom():
-	# {
-	# 	"on" : str, #String Value containing a bash or http command to execute
-	# 	"off" : str, #String Value containing a bash or http command to execute
-	# 	"set_temp" : str, #String Value containing a bash or http command to execute
-	# 	"get status" str, #String Value containing a bash or http command to execute
-	# 	"update": str #String Value containing a bash or http command to execute
-	# }
-	
-	def __init__(self, custom, protocol):
-		self.power = False
-		self.temp = 0.0
-		self.last_change = None
-		self.exclude = False
-		self.status = 'initializing'
-		self.custom = custom
-		self.ingesteld = 0
-		self.name = 'custom'
-		self.failedtimes = 0
-		self.oncmd = None
-		self.offcmd = None
-		self.set_tempcmd = None
-		self.get_statuscmd = None
-		self.updatecmd = None
-		self.protocol = protocol
-		self._load_commands()
-
-	def _load_commands(self):
-		try:
-			c = json.loads(self.custom)
-			self.custom = c
-		except:
-			c = None
-		try:
-			self.oncmd = c['on']
-		except:
-			self.oncmd = None
-		try:
-			self.offcmd = c['off']
-		except:
-			self.offcmd = None
-		try:
-			self.set_tempcmd = c['set_temp']
-		except:
-			self.set_tempcmd = None
-		try:
-			self.get_statuscmd = c['get status']
-		except:
-			self.get_statuscmd = None
-		try:
-			self.updatecmd = c['update']
-		except:
-			self.updatecmd = None
-
 
 def mysort(e)										:
 	return e['priority']
@@ -128,8 +74,8 @@ def clean_device_list(response, test=False):
 	tmp_device_list_rm = device_list.copy()
 	for kmr in response['kamer']:
 		for device in kmr['devices']:
-			if hash(hash(device['mac'])+hash(device['ip'])+hash(device['custom'])+hash(device['protocol'])+hash(device['name'])) in device_list:
-				del tmp_device_list_rm[hash(hash(device['mac'])+hash(device['ip'])+hash(device['custom'])+hash(device['protocol'])+hash(device['name']))]
+			if hash(hash(device['mac'])+hash(device['ip'])+hash(json.dumps(device['custom']))+hash(device['protocol'])+hash(device['name'])) in device_list:
+				del tmp_device_list_rm[hash(hash(device['mac'])+hash(device['ip'])+hash(json.dumps(device['custom']))+hash(device['protocol'])+hash(device['name']))]
 			else:
 				#found a new device, initialise it
 				#store it in a temp list, because we might have redundant devices as well
@@ -143,10 +89,10 @@ def clean_device_list(response, test=False):
 	#add the new found ones (if any) and initialize them
 	if len(tmp_device_list_add)>0:
 		for d in tmp_device_list_add:
-			print("%s Found new %s, initializing, hash %s" % (cur_time(),d['name'],hash(hash(d['mac'])+hash(d['ip'])+hash(d['custom'])+hash(d['protocol'])+hash(d['name']))), file=sys.stderr)
+			print("%s Found new %s, initializing, hash %s" % (cur_time(),d['name'],hash(hash(d['mac'])+hash(d['ip'])+hash(json.dumps(d['custom']))+hash(d['protocol'])+hash(d['name']))), file=sys.stderr)
 			if d['name'] == 'radiator':
 				h = EQ3Thermostat(d['mac'])
-				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(d['custom'])+hash(d['protocol'])+hash(d['name']))] = h
+				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(json.dumps(d['custom']))+hash(d['protocol'])+hash(d['name']))] = h
 				#h.set_manual_mode()
 				if not test:
 					time.sleep(4) # wait for stabilization
@@ -155,20 +101,22 @@ def clean_device_list(response, test=False):
 				a = Airco(d['ip'])
 				a.update(test)
 				a.last_change = d['last_change']
-				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(d['custom'])+hash(d['protocol'])+hash(d['name']))] = a
+				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(json.dumps(d['custom']))+hash(d['protocol'])+hash(d['name']))] = a
 			else: #custom
 				c = Custom(d['custom'],d['protocol'])
-				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(d['custom'])+hash(d['protocol'])+hash(d['name']))] = c
+				device_list[hash(hash(d['mac'])+hash(d['ip'])+hash(json.dumps(d['custom']))+hash(d['protocol'])+hash(d['name']))] = c
 
 def check_opening_offset(device, huidig, ingesteld, offset=None):
 	global airco_heating_offset, heating_offset
-	#print("%s Checking heating offset for %s. Ingesteld: %s, Huidig: %s and custom Offset: %s" % (cur_time(),device['name'],ingesteld,huidig,offset), file=sys.stderr)
+	print("%s Checking heating offset for %s. Ingesteld: %s, Huidig: %s and custom Offset: %s" % (cur_time(),device['name'],ingesteld,huidig,offset), file=sys.stderr)
 	if device['name'] == 'airco':
 		if float(ingesteld - huidig) > float(airco_heating_offset):
 			return True
 		else:
 			return False
 	else: #same for radiator and custom
+		# if offset == 0:
+		# 	offset = None
 		if offset != None:
 			if float(ingesteld - huidig) > float(offset):
 				return True
@@ -197,8 +145,8 @@ def process_rooms(response, test=False):
 			huidig = float(response['kamer'][t1]['huidig'])
 		else:
 			huidig = 0
-		if not verwarming: #if there is no hot water in the pipes. Don't count on a closing offset
-			closing_offset = 0
+		# if not verwarming: #if there is no hot water in the pipes. Don't count on a closing offset
+		# 	closing_offset = 0
 		insync = response['kamer'][t1]['insync']
 		
 		if response['kamer'][t1]['exclude'] == True : #temperature is set manually on the radiator head or on airco
@@ -206,7 +154,7 @@ def process_rooms(response, test=False):
 			#put to manual mode
 			print("%s Room %s in full manual mode. Excluding further instructions" % (cur_time(),response['kamer'][t1]['tid']), file=sys.stderr)
 			for device in response['kamer'][t1]['devices']:
-				hashy = hash(hash(device['mac'])+hash(device['ip'])+hash(device['custom'])+hash(device['protocol'])+hash(device['name']))
+				hashy = hash(hash(device['mac'])+hash(device['ip'])+hash(json.dumps(device['custom']))+hash(device['protocol'])+hash(device['name']))
 				exclude.append(hashy)
 				if device_list[hashy].exclude == False:
 					device_list[hashy].exclude = True
@@ -227,6 +175,7 @@ def process_rooms(response, test=False):
 					co = closing_offset
 				if co == None:
 					co = closing_offset
+				
 				try:
 					smartheating = response['kamer'][t1]['smartheat']
 				except NameError:
@@ -266,7 +215,7 @@ def process_rooms(response, test=False):
 					lastprio = 1
 					use_next_device = True
 					for device in response['kamer'][t1]['devices']:
-						hashy = hash(hash(device['mac'])+hash(device['ip'])+hash(device['custom'])+hash(device['protocol'])+hash(device['name']))
+						hashy = hash(hash(device['mac'])+hash(device['ip'])+hash(json.dumps(device['custom']))+hash(device['protocol'])+hash(device['name']))
 						if use_next_device or lastprio == device['priority']: #keep track of prio devices #if there are multiple devices with the same prio, it should treat as one
 							use_next_device = False
 							#if device.power or device.status == 'on': #this device was already powered up													
@@ -303,7 +252,7 @@ def process_rooms(response, test=False):
 										use_next_device = False
 									else:
 										device_close.append(hashy)
-							else: #custom device & radiator & airco
+							else: #custom device & radiator
 								#first check offset
 								if check_opening_offset(device, huidig, ingesteld, co) or device_list[hashy].status == 'on': #We need to see if the opening offset is met, unless it was already open
 									if device['name'] == 'airco':
@@ -327,7 +276,7 @@ def process_rooms(response, test=False):
 				#else: # temp has been met (taking offset into account), shut down all radiators. and airco's?
 				else: # temp has been met, shut down all devices
 					for device in response['kamer'][t1]['devices']:
-						device_close.append(hash(hash(device['mac'])+hash(device['ip'])+hash(device['custom'])+hash(device['protocol'])+hash(device['name'])))
+						device_close.append(hash(hash(device['mac'])+hash(device['ip'])+hash(json.dumps(device['custom']))+hash(device['protocol'])+hash(device['name'])))
 
 			else: #problems with receiving measurements from thermostats, we need to switch to an alternative
 				#manually set the temperature, so that it doesnt overheat the room
@@ -335,7 +284,7 @@ def process_rooms(response, test=False):
 				#if it's solved, it will return to normal
 				print("%s Not in sync len %s devices" % (cur_time(),len(response['kamer'][t1]['devices'])), file=sys.stderr)
 				for device in response['kamer'][t1]['devices']:
-					hashy = hash(hash(device['mac'])+hash(device['ip'])+hash(device['custom'])+hash(device['protocol'])+hash(device['name']))
+					hashy = hash(hash(device['mac'])+hash(device['ip'])+hash(json.dumps(device['custom']))+hash(device['protocol'])+hash(device['name']))
 					outofsync.append(hashy)
 			
 		t1 = t1 + 1
@@ -387,12 +336,19 @@ def device_on_off(test=False):
 					doit = True
 				if doit == False:
 					print("%s ERROR; Couldnt start airco" % (cur_time(),), file=sys.stderr)
-			else:
-				
-				device_list[device_hash].status = 'on'
-				
-				
-				print("%s Uknown device command for open %s" % (cur_time(),device_list[device_hash].name), file=sys.stderr)
+			else: #custom
+				print("%s Opening custom object %s" % (cur_time(),device_hash), file=sys.stderr)
+				if device_list[device_hash].status == 'on' and device_list[device_hash].status != 'error' and device_list[device_hash].force_command < 5: #force a fresh signal at least every 5 minutes
+					print("%s Custom object already open" % (cur_time(),), file=sys.stderr)
+					device_list[device_hash].force_command = device_list[device_hash].force_command + 1
+				else:
+					if device_list[device_hash].set_on(test):
+						print("%s Success for %s" % (cur_time(),device_hash), file=sys.stderr)
+						device_list[device_hash].status = 'on'
+						device_list[device_hash].force_command = 0
+					else:
+						print("%s Failed for %s, retry next time" % (cur_time(),device_hash), file=sys.stderr)
+						device_list[device_hash].force_command = device_list[device_hash].force_command + 1
 		elif device_hash in device_close or device_hash in outofsync:
 			if device_hash in outofsync:
 				print("%s Thermostat out of sync, closing device by default" % (cur_time(),), file=sys.stderr)
@@ -428,8 +384,18 @@ def device_on_off(test=False):
 				if doit == False:
 					print("%s ERROR; Couldnt start airco" % (cur_time(),), file=sys.stderr)
 			else:
-				device_list[device_hash].status = 'off'
-				print("%s Uknown device command for open %s" % (cur_time(),device_list[device_hash].name), file=sys.stderr)
+				print("%s Closing custom object %s" % (cur_time(),device_hash), file=sys.stderr)
+				if device_list[device_hash].status == 'off' and device_list[device_hash].status != 'error' and device_list[device_hash].force_command < 5: #force a fresh signal at least every 5 minutes
+					print("%s Custom object already closed" % (cur_time(),), file=sys.stderr)
+					device_list[device_hash].force_command = device_list[device_hash].force_command + 1
+				else:
+					if device_list[device_hash].set_off(test):
+						print("%s Success for %s" % (cur_time(),device_hash), file=sys.stderr)
+						device_list[device_hash].status = 'off'
+						device_list[device_hash].force_command = 0
+					else:
+						print("%s Failed for %s, retry next time" % (cur_time(),device_hash), file=sys.stderr)
+						device_list[device_hash].force_command = device_list[device_hash].force_command + 1
 		elif device_hash in exclude:
 			pass #dont do anything
 		#elif device_hash in outofsync:
