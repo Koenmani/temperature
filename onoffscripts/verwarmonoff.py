@@ -229,7 +229,7 @@ def process_rooms(response, test=False):
 									tmp_ingesteld = ingesteld								
 								if tmp_ingesteld != device_list[hashy].ingesteld: #if new temperature is set, reset last_change timer
 									device_list[hashy].last_change = nu
-									print("%s Room %s old temperature(%s) changed to (%s), resending new instructions" % (cur_time(),response['kamer'][t1]['tid'],device.ingesteld,ingesteld), file=sys.stderr)
+									print("%s Room %s old temperature(%s) changed to (%s), resending new instructions" % (cur_time(),response['kamer'][t1]['tid'],device_list[hashy].ingesteld,ingesteld), file=sys.stderr)
 								else:
 									if device_list[hashy].last_change:
 										last_change_delta = device_list[hashy].last_change + timedelta(minutes=60)
