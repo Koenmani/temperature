@@ -7,8 +7,8 @@
 /* Style the tabs */
 .tabs {
     overflow: hidden;
-  margin-left: 20px;
-    margin-bottom: -2px; // hide bottom border
+    margin-left: 20px;
+    margin-bottom: -2px;
 }
 
 .tabs ul {
@@ -26,7 +26,7 @@
     background-color: #f1f1f1;
     border-radius: 10px 10px 0 0;
     font-weight: bold;
-    font-size: 2em;
+    font-size: 1.5em;
 }
 .tabs a:last-child { 
     border-right: 1px solid #ccc;

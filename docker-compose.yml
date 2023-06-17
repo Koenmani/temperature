@@ -4,10 +4,10 @@ services:
   thermo:
     environment:
       - TZ='Europe/Amsterdam'
-      - VERWARMING_DB_IP=192.168.0.125
-      - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=postgres
-      - VERWARMING_DBPASS=docker
+      - VERWARMING_DB_IP=
+      - VERWARMING_DBNAME=
+      - VERWARMING_DBUSER=
+      - VERWARMING_DBPASS=
     restart: unless-stopped
     build: "./"
     privileged: true
@@ -21,11 +21,11 @@ services:
   verwarmcontroller:
     environment:
       - TZ='Europe/Amsterdam'
-      - VERWARMING_DB_IP=192.168.0.125
+      - VERWARMING_DB_IP=
       - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=postgres
-      - VERWARMING_DBPASS=docker
-      - AIRCO_IP=http://192.168.0.135
+      - VERWARMING_DBUSER=
+      - VERWARMING_DBPASS=
+      - AIRCO_IP=http://
     build: "./controller"
     restart: unless-stopped
     ports:
@@ -43,15 +43,15 @@ services:
   verwarmonoff:
     environment:
       - TZ='Europe/Amsterdam'
-      - VERWARMING_ONOFF_RPI=http://192.168.0.125:8000/
+      - VERWARMING_ONOFF_RPI=http://
       - VERWARMING_CLOSING_OFFSET=0.2
       - VERWARMING_HEATING_OFFSET=0.7
       - AIRCO_VERWARMING_HEATING_OFFSET=0.4
       - VERWARMING_SMART_HEAT=False
       - VERWARMING_ONOFF_LON=4.60
       - VERWARMING_ONOFF_LAT=51.87
-      - VERWARMING_ONOFF_API="b3e2781468f747d3a2781468f7d7d30b"
-      - AIRCO_OUTSIDE_TEMP_IP="192.168.0.137"
+      - VERWARMING_ONOFF_API=""
+      - AIRCO_OUTSIDE_TEMP_IP=""
       - AIRCO_HEATING_TEMP_INCREASE=1
     build: "./onoffscripts"
     restart: unless-stopped
@@ -69,11 +69,11 @@ services:
   nefitread:
     environment:
       - TZ='Europe/Amsterdam'
-      - VERWARMING_ONOFF_RPI=http://192.168.0.125:8000/
-      - VERWARMING_DB_IP=192.168.0.125
-      - VERWARMING_DBNAME=verwarming
-      - VERWARMING_DBUSER=postgres
-      - VERWARMING_DBPASS=docker
+      - VERWARMING_ONOFF_RPI=http://
+      - VERWARMING_DB_IP=
+      - VERWARMING_DBNAME=
+      - VERWARMING_DBUSER=
+      - VERWARMING_DBPASS=
     build: "./read_nefit_data"
     restart: unless-stopped
     networks:
@@ -89,9 +89,9 @@ services:
   nefit-easy:
     environment:
       - TZ='Europe/Amsterdam'
-      - NEFIT_SERIAL_NUMBER=654950243
-      - NEFIT_ACCESS_KEY=bxaAMRfNvBJUmD5n
-      - NEFIT_PASSWORD=Hoera888
+      - NEFIT_SERIAL_NUMBER=
+      - NEFIT_ACCESS_KEY=
+      - NEFIT_PASSWORD=
     build: "./nefit-easy"
     restart: unless-stopped
     networks:
@@ -105,6 +105,23 @@ services:
         max-file: "3"
     ports:
       - "8000:8000"
-        
+
+  websocket_handler:
+    environment:
+      - TZ='Europe/Amsterdam'
+    build: "./websocket"
+    restart: unless-stopped
+    networks:
+      new:
+        aliases:
+          - verwarmcontroller
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "8081:8081"
+         
 networks:
   new:

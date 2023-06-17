@@ -131,7 +131,7 @@ const VM = new Vue({
 	outside_temp:0.0,
     ip: rpi,
 	url: rpi+":6543", //rpi
-	//url: "http://192.168.0.153:5000", //local
+	//url: "http://localhost:5000", //local
     watering_status: false,
     water_obj: [],
     zone_obj: [],
@@ -152,7 +152,49 @@ const VM = new Vue({
 	this.timer = setInterval(this.fetchventstatus, 60000)
 	
 	this.fetchwaterstatus()
-	this.timer = setInterval(this.fetchwaterstatus, 60000) 
+	this.timer = setInterval(this.fetchwaterstatus, 60000)
+
+	try {
+		var ws = new WebSocket("ws://192.168.0.125:8081/");
+		
+		var v = this
+		ws.onmessage = function (e) {
+			var d = JSON.parse(e.data);
+			if (typeof d['temp'] != "undefined") {
+				for (const temp of d['temp']){
+					console.log('Received temp update for '+temp['tid']+' of temp: '+temp['huidig']);
+					for (const k of v.kamer_obj){
+						if (k.tid == d.tid){
+							k.huidig = d.huidig;
+						}
+					}
+				}
+			}
+			if (typeof d['verwarming'] != "undefined") {
+				if (d['verwarming'] == true){
+					v.verwarming = true;
+				}
+				else{
+					v.verwarming = false;
+				}
+			}	
+			if (typeof d['device'] != "undefined") {
+				for (const device of d['device']){
+					console.log('Received update of '+device['mac']+' or '+device['ip']+' or '+device['custom']+' device openclose: '+device['open_close']);
+					for (const k of v.kamer_obj){
+						for (const d of k['devices']){
+							if ((device['mac'] == d['mac']) && (device['ip'] == d['ip']) && (device['custom'] == d['custom'])){
+								d['open_close'] = device['open_close']
+							}
+						}
+					}
+				}
+			}
+		};
+	} catch ( e ) {
+    	console.warn(e);
+	}
+
   },
   methods: {	
 	toggle_light(){
@@ -274,6 +316,12 @@ const VM = new Vue({
 });
 //{"kamer":[{"handmatig":false,"huidig":18.3,"ingesteld":0,"laatste_tijd":0,"naam":"Matthias","radiator":[{"mac":null}],"tid":1,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":18.2,"ingesteld":0,"laatste_tijd":0,"naam":"Zahia","radiator":[{"mac":null}],"tid":2,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":17.3,"ingesteld":0,"laatste_tijd":0,"naam":"Badkamer","radiator":[{"mac":null}],"tid":3,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":17.3,"ingesteld":0,"laatste_tijd":0,"naam":"Isabella","radiator":[{"mac":null}],"tid":4,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":16.1,"ingesteld":0,"laatste_tijd":0,"naam":"PaMa","radiator":[{"mac":null}],"tid":5,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":20.0,"ingesteld":0,"laatste_tijd":0,"naam":"Woonkamer","radiator":[{"mac":null}],"tid":6,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":17.9,"ingesteld":0,"laatste_tijd":0,"naam":"David","radiator":[{"mac":null}],"tid":7,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":19.4,"ingesteld":0,"laatste_tijd":0,"naam":"Ephiny","radiator":[{"mac":null}],"tid":8,"volgend_temp":0,"volgend_tijd":0},{"handmatig":false,"huidig":19.6,"ingesteld":18.0,"laatste_tijd":"09:00","naam":"Werkkamer","radiator":[{"mac":"00:1A:22:16:8B:E9"}],"tid":9,"volgend_temp":15.0,"volgend_tijd":"18:00"},{"handmatig":false,"huidig":15.9,"ingesteld":0,"laatste_tijd":0,"naam":"Berging","radiator":[{"mac":null}],"tid":10,"volgend_temp":0,"volgend_tijd":0}]}
 </script>
+<script>
+	window.onload = function() {
+		
+	}
+</script>
+
 
 </html>
 

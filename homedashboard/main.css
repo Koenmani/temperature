@@ -5,7 +5,13 @@
     color: #888;
     height: 90%;
 }
-
+.buiten_temp{
+	font-size: 1.5em;
+	color: black;
+	position:absolute;
+	top:1%;
+	right:1%;
+}
 .kamer{
 	color:black;
 }
@@ -65,7 +71,7 @@
 .showstatus_box{
 	margin-top:2%;
 	margin-left:10%;
-	height:20%;
+	height:19%;
 	width: 80%;
 	float:left;
 	border:1px solid;
@@ -93,6 +99,12 @@
 	background-size:30%;
 	background-position: center;
 }
+.airco{
+	background-image: url("fan.png");
+	background-repeat: no-repeat;
+	background-size:10%;
+	background-position: center;
+}
 .lowbattery{
 	background-image: url("battery.png");
 	background-repeat: no-repeat;
@@ -104,6 +116,12 @@
 	background-repeat: no-repeat;
 	background-size:10%;
 	background-position: center;
+}
+.holiday{
+	background-image: url("holiday.png");
+	background-repeat: no-repeat;
+	background-size:8%;
+	background-position: bottom;
 }
 .enkele_kamer{
 	width:95%;
