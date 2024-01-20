@@ -51,8 +51,7 @@ services:
       - VERWARMING_ONOFF_LON=4.60
       - VERWARMING_ONOFF_LAT=51.87
       - VERWARMING_ONOFF_API=""
-      - AIRCO_OUTSIDE_TEMP_IP=""
-      - AIRCO_HEATING_TEMP_INCREASE=1
+      - AIRCO_HEATING_TEMP_INCREASE=
     build: "./onoffscripts"
     restart: unless-stopped
     privileged: true

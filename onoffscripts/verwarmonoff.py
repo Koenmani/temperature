@@ -11,6 +11,8 @@ from custom_control_object import Custom
 import traceback
 import os
 import json
+import websockets
+import asyncio
 
 def mysort(e)										:
 	return e['priority']
@@ -25,6 +27,18 @@ def cur_time():
 	utcstr = utc.strftime('%Y-%m-%d %H:%M:%S')
 	#now = datetime.strptime(utcstr, "%Y-%m-%d %H:%M:%S")
 	return ("[%s]" % (utc.strftime('%Y-%m-%d %H:%M:%S'),))
+
+async def produce_message(message:str)->None:
+	try:
+		async with websockets.connect("ws://192.168.0.125:8081") as ws:
+			await ws.send(message)
+	except:
+		print("%s Could not connect to websocket" % (cur_time(),), file=sys.stderr)
+
+def send_websocket_update(message):
+	loop = asyncio.new_event_loop()
+	asyncio.set_event_loop(loop)
+	loop.run_until_complete(produce_message(message))
 
 def CV_openclose(t, test):
 	global rpi
@@ -41,6 +55,11 @@ def CV_openclose(t, test):
 			r = requests.post(rpi+'bridge/heatingCircuits/hc1/manualTempOverride/temperature', json = {"value":t}, timeout=5)
 			response = r.json()
 			if response['status'] == "ok":
+				if t == 5:
+					message = '{"verwarming": false}'
+				else:
+					message = '{"verwarming": true}'
+				send_websocket_update(message)
 				return True
 			else:
 				raise Exception('Could not succesfully connect to heating system')
@@ -349,7 +368,9 @@ def device_on_off(test=False):
 					else:
 						print("%s Failed for %s, retry next time" % (cur_time(),device_hash), file=sys.stderr)
 						device_list[device_hash].force_command = device_list[device_hash].force_command + 1
-		elif device_hash in device_close or device_hash in outofsync:
+		elif device_hash in device_close or device_hash in outofsync or device_hash in exclude:
+			if device_hash in exclude:
+				print("%s Thermostat should be excluded, closing device by default" % (cur_time(),), file=sys.stderr)
 			if device_hash in outofsync:
 				print("%s Thermostat out of sync, closing device by default" % (cur_time(),), file=sys.stderr)
 			if device_list[device_hash].name == 'radiator':			
@@ -396,8 +417,8 @@ def device_on_off(test=False):
 					else:
 						print("%s Failed for %s, retry next time" % (cur_time(),device_hash), file=sys.stderr)
 						device_list[device_hash].force_command = device_list[device_hash].force_command + 1
-		elif device_hash in exclude:
-			pass #dont do anything
+		#elif device_hash in exclude:
+		#	pass #dont do anything
 		#elif device_hash in outofsync:
 		else:
 			print("%s Debug Device_list%s" % (cur_time(),device_list), file=sys.stderr)
@@ -410,7 +431,7 @@ def device_on_off(test=False):
 			device_list[device_hash].status = 'error'
 			serious_radiator_problem = True
 
-		#send radiator and CV status to database
+		#send radiator status to database
 		
 		if not test and device_list[device_hash].name == 'radiator':
 			try:
@@ -436,6 +457,12 @@ def boiler_on_off(test=False):
 				break
 
 	if radiator_open:
+		#loop over open radiators. If at least one is opened succesfully, we do not have to prevent overheating the boiler
+		#as a result, set serious_radiator problem to false. Else nothing will heat up
+		for device_hash in device_list.keys():
+			if device_list[device_hash].name == 'radiator':
+				if device_list[device_hash].status == 'on':
+					serious_radiator_problem = False
 		if serious_radiator_problem:
 			#If a closing radiator is in error for 15min, we should close CV as well... else it will overheat
 			#unless there is nothing else open anyway
@@ -611,7 +638,7 @@ if __name__ == '__main__':
 						if device_list[device_hash].name == 'radiator':
 							try:
 								print("%s Checking for battery for %s" % (cur_time(),device_list[device_hash].address), file=sys.stderr)
-								if radiator_list[t4].update:
+								if device_list[device_hash].update:
 									print("%s Lowbattery status %s " % (cur_time(),device_list[device_hash].lowbattery), file=sys.stderr)
 								a = device_list[device_hash].address
 								if device_list[device_hash].remoteaddress:
