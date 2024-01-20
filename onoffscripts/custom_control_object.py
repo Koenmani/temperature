@@ -91,20 +91,23 @@ class Custom():
 				return True
 			if str.upper(self.protocol) == 'HTTP':
 				print("%s Requesting from custom object: %s" % (self.cur_time(),self.oncmd), file=sys.stderr)
-				r = requests.get(self.oncmd, timeout=5)
+				try:
+					r = requests.get(self.oncmd, timeout=5)
+				except:
+					return False
 				if self.cmd_success:
 					response = r.text
 					if response == self.cmd_success:
 						return True
 					else:
-						return False
 						print("%s Invalid response in custom object command: %s" % (self.cur_time(),self.oncmd), file=sys.stderr)
+						return False						
 				else:
 					if r.status_code == 200:
 						return True
 					else:
-						return False
 						print("%s Invalid response in custom object command: %s" % (self.cur_time(),self.oncmd), file=sys.stderr)
+						return False						
 			else: #lets execute a bash command
 				try:
 					p = subprocess.Popen([self.oncmd],stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -118,8 +121,8 @@ class Custom():
 						if response == self.cmd_success:
 							return True
 						else:
-							return False
 							print("%s Invalid response in custom object command: %s" % (self.cur_time(),self.oncmd), file=sys.stderr)
+							return False							
 					else:
 						if p.returncode == 0:
 							return True
@@ -137,20 +140,23 @@ class Custom():
 			if test:
 				return True
 			if str.upper(self.protocol) == 'HTTP':
-				r = requests.get(self.offcmd, timeout=5)
+				try:
+					r = requests.get(self.offcmd, timeout=5)
+				except:
+					return False
 				if self.cmd_success:
 					response = r.text
 					if response == self.cmd_success:
 						return True
 					else:
-						return False
 						print("%s Invalid response in custom object command: %s" % (self.cur_time(),self.offcmd), file=sys.stderr)
+						return False						
 				else:
 					if r.status_code == 200:
 						return True
 					else:
-						return False
 						print("%s Invalid response in custom object command: %s" % (self.cur_time(),self.offcmd), file=sys.stderr)
+						return False						
 			else: #lets execute a bash command
 				try:
 					p = subprocess.Popen([self.offcmd],stdout=subprocess.PIPE, stderr=subprocess.PIPE)

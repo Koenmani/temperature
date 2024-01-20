@@ -407,8 +407,8 @@ def device_on_off(test=False):
 			print("%s Debug Device_outofsync%s" % (cur_time(),outofsync), file=sys.stderr)
 			raise Exception('Unknown radiator head(%s), something is terribly wrong' % (+device_hash,))
 		if device_list[device_hash].failedtimes > 15: #something is wrong... more than 15 minutes of failures
-	 		device_list[device_hash].status = 'error'
-	 		serious_radiator_problem = True 
+			device_list[device_hash].status = 'error'
+			serious_radiator_problem = True
 
 		#send radiator and CV status to database
 		
